@@ -8,16 +8,16 @@
 <meta content="black" name="apple-mobile-web-app-status-bar-style" />
 <meta name="referrer" content="never">
 <meta name="keywords" content="">
-<meta name="description" content="欢迎访问[Gridea]的个人博客">
+<meta name="description" content="欢迎访问[Old Camel]的个人博客">
 <meta name="author" content="kveln">
-<title>Hello Gridea | Gridea</title>
+<title>Hello Gridea | Old Camel</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
 <link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
 <link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
 <link
   href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
   rel='stylesheet' type='text/css'>
-<link rel="alternate" type="application/rss+xml" title="Hello Gridea | Gridea » Feed"
+<link rel="alternate" type="application/rss+xml" title="Hello Gridea | Old Camel » Feed"
   href="https://old-camel.github.io//atom.xml">
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
@@ -34,7 +34,7 @@
   <meta property="og:url" content="https://old-camel.github.io/post/hello-gridea/" />
   <meta property="og:locale" content="zh-CN" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Gridea" />
+  <meta property="og:site_name" content="Old Camel" />
   <!-- <script src="../assets/styles/scripts/tocScript.js"></script> -->
 </head>
 
@@ -42,7 +42,7 @@
   <!-- Navigation -->
   <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
   <div class="container">
-    <a class="navbar-brand" href="https://old-camel.github.io/">Gridea</a>
+    <a class="navbar-brand" href="https://old-camel.github.io/">Old Camel</a>
     <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
       data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
       aria-label="Toggle navigation">
@@ -78,7 +78,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1607490065452"
+            <form id="gridea-search-form" style="position: relative" data-update="1607492546585"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -92,7 +92,7 @@
   <!-- Page Header -->
   <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
   <div class="container">
-    <a class="navbar-brand" href="https://old-camel.github.io/">Gridea</a>
+    <a class="navbar-brand" href="https://old-camel.github.io/">Old Camel</a>
     <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
       data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
       aria-label="Toggle navigation">
@@ -128,7 +128,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1607490065452"
+            <form id="gridea-search-form" style="position: relative" data-update="1607492546585"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -223,6 +223,15 @@
           <ul class="list-inline text-center">
             
             
+            <li class="list-inline-item">
+              <a href="https://github.com/Old-Camel" target="_blank">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+            </li>
+            
               
             
               
@@ -245,7 +254,7 @@
               </a>
               </li> -->
           </ul>
-          <p class="copyright text-muted">Copyright &copy;<span>Gridea</span><br><a href="https://github.com/getgridea/gridea" class="Themeinfo">Powered by Gridea</a></p>
+          <p class="copyright text-muted">Copyright &copy;<span>Old Camel</span><br><a href="https://github.com/getgridea/gridea" class="Themeinfo">Powered by Gridea</a></p>
         </div>
       </div>
     </div>
@@ -284,6 +293,47 @@
       }
     }
   })(this));</script>
+  
+  <div id="landlord-parent">
+    <div id="landlord">
+        <div class="message" style="opacity:0"></div>
+        <canvas id="live2d" width="240" height="250" class="live2d"></canvas>
+    </div>
+</div>
+
+<script type="text/javascript">
+    if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+        //移动端
+        console.log("------ 移动端");
+    } else {
+        console.log("------ PC端 " + navigator.userAgent);
+
+        addScript("https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/js/live2d.js", () => {
+            // 加载完成后再loadlive2d
+            loadlive2d("live2d", "https://old-camel.github.io//media/live2d/assets/hijiki.model.json");
+        });
+
+        var home_Path = "https://old-camel.github.io//";
+        addScript("https://old-camel.github.io//media/live2d/js/message.js", () => { });
+    }
+
+    // 插入js文件，完成后callback
+    function addScript(jsfile, callback) {
+        var landlord_parent = document.getElementById("landlord-parent");
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = jsfile;
+        landlord_parent.appendChild(script);
+        script.onload = script.onreadystatechange = function () {
+            if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
+                script.onload = script.onreadystatechange = null;
+                if (callback && typeof callback == "function") {
+                    callback(); //window[callback]();如果传递字符串过来 调用window['函数名']() 调用方法
+                }
+            }
+        };
+    }
+</script>
   
   <script src="https://old-camel.github.io//media/scripts/tocScript.js"></script>
 </body>
