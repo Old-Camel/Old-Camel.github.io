@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-10T10:17:42.003Z</updated>
+    <updated>2020-12-10T10:36:11.222Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -10,4 +10,22 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Beam 同步Oracle日志到ClickHouse]]></title>
+        <id>https://oldcamel.run/post/apache-beam-tong-bu-oracle-ri-zhi-dao-clickhouse/</id>
+        <link href="https://oldcamel.run/post/apache-beam-tong-bu-oracle-ri-zhi-dao-clickhouse/">
+        </link>
+        <updated>2020-12-10T10:19:02.000Z</updated>
+        <content type="html"><![CDATA[<p>用kafka的oracle connect插件存储oracle日志，用beam读取kafka数据插入到clickhouse中</p>
+<h2 id="oracle开启归档模式">oracle开启归档模式</h2>
+<p>数据库必须处于archivelog模式，并且必须启用补充日志记录。<br>
+在数据库服务器上执行</p>
+<pre><code>sqlplus / as sysdba    
+SQL&gt;shutdown immediate
+SQL&gt;startup mount
+SQL&gt;alter database archivelog;
+SQL&gt;alter database open;
+</code></pre>
+]]></content>
+    </entry>
 </feed>
