@@ -86,7 +86,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1607600235934"
+            <form id="gridea-search-form" style="position: relative" data-update="1607602360570"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -136,7 +136,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1607600235934"
+            <form id="gridea-search-form" style="position: relative" data-update="1607602360570"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -163,7 +163,7 @@
               <h1>Apache Beam 同步Oracle日志到ClickHouse</h1>
               <span class="meta">
                 Posted on
-                2020-12-10，4 min read
+                2020-12-10，12 min read
               </span>
             </div>
           
@@ -179,7 +179,7 @@
         <div class="col-lg-8 col-md-10 mx-auto post-content-container">
           
           <p>用kafka的oracle connect插件存储oracle日志，用beam读取kafka数据插入到clickhouse中</p>
-<h2 id="1oracle配置">1.oracle配置</h2>
+<h2 id="oracle配置">oracle配置</h2>
 <h3 id="archivelog模式">archivelog模式</h3>
 <p>数据库必须处于archivelog模式，并且必须启用补充日志记录<br>
 在数据库服务器上执行</p>
@@ -193,7 +193,7 @@ SQL&gt;alter database open;
 <pre><code>sqlplus / as sysdba    
 SQL&gt;alter database add supplemental log data (all) columns;
 </code></pre>
-<h2 id="2kafka配置">2.kafka配置</h2>
+<h2 id="kafka配置">kafka配置</h2>
 <h3 id="插件配置文件">插件配置文件</h3>
 <p>在$KAFKA_HOME/config 目录新建OracleSourceConnector.properties配置文件，<br>
 文件内示例配置</p>
@@ -214,7 +214,7 @@ parse.dml.data=true
 reset.offset=false
 multitenant=false
 </code></pre>
-<p>配置说明</p>
+<h3 id="配置说明">配置说明</h3>
 <table>
 <thead>
 <tr>
@@ -316,28 +316,456 @@ multitenant=false
 </tr>
 </tbody>
 </table>
-<p>以上为机翻，原说明文档地址见 <a href="https://github.com/erdemcer/kafka-connect-oracle/blob/master/README.md">https://github.com/erdemcer/kafka-connect-oracle/blob/master/README.md</a></p>
-<p>添加kafka插件包</p>
+<p>以上为机翻，原说明文档地址见<br>
+<a href="https://github.com/erdemcer/kafka-connect-oracle/blob/master/README.md">https://github.com/erdemcer/kafka-connect-oracle/blob/master/README.md</a></p>
+<h3 id="添加kafka插件包">添加kafka插件包</h3>
 <p><a href="https://www.jianguoyun.com/p/DSQTC_AQz5aGCRiHodMD"><mark>kafka-connect-oracle-1.0.68.jar</mark></a>和相应版本的oracle的驱动包放入到 $KAFKA_HOME/lib文件夹中</p>
-<p>启动插件</p>
+<h3 id="启动插件">启动插件</h3>
 <pre><code>cd $KAFKA_HOME
 ./bin/connect-standalone.sh ./config/connect-standalone.properties ./config/OracleSourceConnector.properties
 </code></pre>
+<h3 id="kafka消息说明">kafka消息说明</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SCN</td>
+<td>数据库日志时间</td>
+</tr>
+<tr>
+<td>SEG_OWNER</td>
+<td>数据库用户名</td>
+</tr>
+<tr>
+<td>TABLE_NAME</td>
+<td>数据库表名</td>
+</tr>
+<tr>
+<td>TIMESTAMP</td>
+<td>时间戳</td>
+</tr>
+<tr>
+<td>SQL_REDO</td>
+<td>执行的sql语句</td>
+</tr>
+<tr>
+<td>OPERATION</td>
+<td>操作</td>
+</tr>
+<tr>
+<td>DATA</td>
+<td>更新后的数据</td>
+</tr>
+<tr>
+<td>BEFORE</td>
+<td>更新前的数据</td>
+</tr>
+</tbody>
+</table>
+<h2 id="clickhouse-建表">ClickHouse 建表</h2>
+<pre><code class="language-sql">CREATE TABLE default.ODB_LOG
+(
+SCN        Int64,
+SEG_OWNER  String,
+TABLE_NAME String,
+`TIMESTAMP` DateTime,
+SQL_REDO String,
+OPERATION String,
+ `DATA` String,
+`BEFORE` String
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(TIMESTAMP)
+ORDER BY  (SEG_OWNER,TABLE_NAME,OPERATION,TIMESTAMP )
+SETTINGS index_granularity=8192;
+</code></pre>
+<h2 id="beam-程序">Beam 程序</h2>
+<h3 id="maven添加-依赖包">maven添加 依赖包</h3>
+<pre><code class="language-xml">        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+            &lt;artifactId&gt;beam-sdks-java-io-clickhouse&lt;/artifactId&gt;
+            &lt;version&gt;${beam.version}&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+            &lt;artifactId&gt;beam-sdks-java-io-kafka&lt;/artifactId&gt;
+            &lt;version&gt;${beam.version}&lt;/version&gt;
+        &lt;/dependency&gt;
+         &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.kafka&lt;/groupId&gt;
+            &lt;artifactId&gt;kafka-clients&lt;/artifactId&gt;
+            &lt;version&gt;2.4.1&lt;/version&gt;
+            &lt;!--        &lt;scope&gt;runtime&lt;/scope&gt;--&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+            &lt;artifactId&gt;beam-runners-flink-1.11&lt;/artifactId&gt;
+            &lt;version&gt;${beam.version}&lt;/version&gt;
+        &lt;/dependency&gt;
+
+</code></pre>
+<h3 id="创建配置参数类">创建配置参数类</h3>
+<pre><code class="language-java">package com.yunzainfo.kol.config;
+
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.Validation.Required;
+
+/**
+ * Created by IntelliJ IDEA
+ * TODO: TODO
+ *
+ * @author: 徐成
+ * Date: 2020/12/2
+ * Time: 10:08 上午
+ * Email: old_camel@163.com
+ */
+public interface KolOptions extends FlinkPipelineOptions {
+//public interface OdcOptions extends PipelineOptions {
+    @Description(&quot;kafka链接地址&quot;)
+    @Required
+    @Default.String(&quot;xxx.xxx.xxx.xxx:9092&quot;)
+    String getBootstrapServers();
+    void setBootstrapServers(String value);
+    @Description(&quot;kafka 消息主题&quot;)
+    @Required
+    @Default.String(&quot;kol&quot;)
+    String getTopic();
+    void setTopic(String value);
+    @Description(&quot;分组id&quot;)
+    @Required
+    @Default.String(&quot;bdf_kol&quot;)
+    String getGroupid();
+    void setGroupid(String value);
+    @Description(&quot;kafka用户&quot;)
+    @Required
+    @Default.String(&quot;xxx&quot;)
+    String getKafkaUsername();
+    void setKafkaUsername(String kafkaUsername);
+    @Description(&quot;kafka密码&quot;)
+    @Required
+    @Default.String(&quot;xxx&quot;)
+    String getKafkaPassword();
+    void setKafkaPassword(String kafkaPassword);
+    @Description(&quot;ClickHouse连接地址&quot;)
+    @Required
+    @Default.String(&quot;xxx.xxx.xxx.xxx:xxxx/default&quot;)
+    String getClickHouseUrl();
+    void setClickHouseUrl(String value);
+    @Description(&quot;ClickHouse用户名&quot;)
+    @Required
+    @Default.String(&quot;root&quot;)
+    String getClickHouseUserName();
+    void setClickHouseUserName(String value);
+    @Description(&quot;ClickHouse密码&quot;)
+    @Required
+    @Default.String(&quot;xxx&quot;)
+    String getClickHousePassword();
+    void setClickHousePassword(String value);
+    @Description(&quot;ClickHouse表&quot;)
+    @Required
+    @Default.String(&quot;ODB_LOG&quot;)
+    String getClickHouseTableName();
+    void setClickHouseTableName(String value);
+}
+
+
+</code></pre>
+<h3 id="kafka消息映射类">kafka消息映射类</h3>
+<pre><code class="language-java">package com.yunzainfo.kol.model;
+
+import org.codehaus.jackson.annotate.JsonProperty;
+
+import java.io.Serializable;
+import java.util.Date;
+
+/**
+ * Created by IntelliJ IDEA
+ * TODO: TODO
+ *
+ * @author: 徐成
+ * Date: 2020/11/30
+ * Time: 2:32 下午
+ * Email: old_camel@163.com
+ */
+public class Payload implements Serializable {
+    private static final long serialVersionUID = 1L;
+    @JsonProperty(value = &quot;SCN&quot;)
+    private Long SCN;
+    @JsonProperty(value = &quot;SEG_OWNER&quot;)
+    private String SEG_OWNER;
+    @JsonProperty(value = &quot;TABLE_NAME&quot;)
+    private String TABLE_NAME;
+    @JsonProperty(value = &quot;TIMESTAMP&quot;)
+    private Long TIMESTAMP;
+    @JsonProperty(value = &quot;SQL_REDO&quot;)
+    private String SQL_REDO;
+    @JsonProperty(value = &quot;OPERATION&quot;)
+    private String OPERATION;
+    @JsonProperty(value = &quot;data&quot;)
+    private Object DATA;
+    @JsonProperty(value = &quot;before&quot;)
+    private Object BEFORE;
+
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
+    }
+
+    public Long getSCN() {
+        return SCN;
+    }
+
+    public void setSCN(Long SCN) {
+        this.SCN = SCN;
+    }
+
+    public String getSEG_OWNER() {
+        return SEG_OWNER;
+    }
+
+    public void setSEG_OWNER(String SEG_OWNER) {
+        this.SEG_OWNER = SEG_OWNER;
+    }
+
+    public String getTABLE_NAME() {
+        return TABLE_NAME;
+    }
+
+    public void setTABLE_NAME(String TABLE_NAME) {
+        this.TABLE_NAME = TABLE_NAME;
+    }
+
+    public Long getTIMESTAMP() {
+        return TIMESTAMP;
+    }
+
+    public void setTIMESTAMP(Long TIMESTAMP) {
+        this.TIMESTAMP = TIMESTAMP;
+    }
+
+    public String getSQL_REDO() {
+        return SQL_REDO;
+    }
+
+    public void setSQL_REDO(String SQL_REDO) {
+        this.SQL_REDO = SQL_REDO;
+    }
+
+    public String getOPERATION() {
+        return OPERATION;
+    }
+
+    public void setOPERATION(String OPERATION) {
+        this.OPERATION = OPERATION;
+    }
+
+    public Object getDATA() {
+        return DATA;
+    }
+
+    public void setDATA(Object DATA) {
+        this.DATA = DATA;
+    }
+
+    public Object getBEFORE() {
+        return BEFORE;
+    }
+
+    public void setBEFORE(Object BEFORE) {
+        this.BEFORE = BEFORE;
+    }
+
+    @Override
+    public String toString() {
+        return &quot;Payload{&quot; +
+                &quot;SCN=&quot; + SCN +
+                &quot;, SEG_OWNER='&quot; + SEG_OWNER + '\'' +
+                &quot;, TABLE_NAME='&quot; + TABLE_NAME + '\'' +
+                &quot;, TIMESTAMP=&quot; + TIMESTAMP +
+                &quot;, SQL_REDO='&quot; + SQL_REDO + '\'' +
+                &quot;, OPERATION='&quot; + OPERATION + '\'' +
+                &quot;, DATA='&quot; + DATA + '\'' +
+                &quot;, BEFORE='&quot; + BEFORE + '\'' +
+                '}';
+    }
+}
+
+
+</code></pre>
+<h3 id="主程序">主程序</h3>
+<pre><code class="language-java">package com.yunzainfo.kol;
+
+import com.yunzainfo.kol.config.KolOptions;
+import com.yunzainfo.kol.model.Payload;
+import org.apache.beam.runners.flink.FlinkRunner;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.clickhouse.ClickHouseIO;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
+
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * Created by IntelliJ IDEA
+ * TODO: TODO
+ *
+ * @author: 徐成
+ * Date: 2020/11/27
+ * Time: 5:49 下午
+ * Email: old_camel@163.com
+ */
+public class KolApp {
+
+
+    public static void main(String[] args) {
+        KolOptions options = PipelineOptionsFactory.fromArgs(args).as(KolOptions.class);
+        options.setRunner(FlinkRunner.class);
+        runOdc(options);
+    }
+
+    public static Object isnull(Object o) {
+        if (o == null) {
+            return &quot;&quot;;
+        } else {
+            return o;
+        }
+    }
+
+    public static void runOdc(KolOptions options) {
+        Pipeline p = Pipeline.create(options);
+        final Map&lt;String, Object&gt; immutableMap = new ImmutableMap.Builder&lt;String, Object&gt;()
+                .put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, &quot;earliest&quot;)
+                .put(ConsumerConfig.GROUP_ID_CONFIG, options.getGroupid())
+                .put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true)
+                .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, &quot;SASL_PLAINTEXT&quot;)
+                .put(SaslConfigs.SASL_MECHANISM, &quot;PLAIN&quot;)
+                .put(SaslConfigs.SASL_JAAS_CONFIG, &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;&quot; + options.getKafkaUsername() + &quot;\&quot; password=\&quot;&quot; + options.getKafkaPassword() + &quot;\&quot;;&quot;)
+                .build();
+        final Schema ckType = Schema.of(
+                Schema.Field.of(&quot;SCN&quot;, Schema.FieldType.INT64.withNullable(true)),
+                Schema.Field.of(&quot;SEG_OWNER&quot;, Schema.FieldType.STRING.withNullable(true)),
+                Schema.Field.of(&quot;TABLE_NAME&quot;, Schema.FieldType.STRING.withNullable(true)),
+                Schema.Field.of(&quot;TIMESTAMP&quot;, Schema.FieldType.DATETIME.withNullable(true)),
+                Schema.Field.of(&quot;SQL_REDO&quot;, Schema.FieldType.STRING.withNullable(true)),
+                Schema.Field.of(&quot;OPERATION&quot;, Schema.FieldType.STRING.withNullable(true)),
+                Schema.Field.of(&quot;DATA&quot;, Schema.FieldType.STRING.withNullable(true)),
+                Schema.Field.of(&quot;BEFORE&quot;, Schema.FieldType.STRING.withNullable(true))
+        );
+        p.apply(&quot;读取消息&quot;, KafkaIO.&lt;String, String&gt;read()
+                .withBootstrapServers(options.getBootstrapServers())
+                .withTopic(options.getTopic())
+                .withKeyDeserializer(StringDeserializer.class)
+                .withValueDeserializer(StringDeserializer.class)
+                .withOffsetConsumerConfigOverrides(ImmutableMap.&lt;String, Object&gt;of(ConsumerConfig.GROUP_ID_CONFIG, options.getGroupid()))
+                .withConsumerConfigUpdates(immutableMap)
+                .withReadCommitted()
+                .withoutMetadata())
+                .apply(Values.create())
+                .apply(&quot;转义Payload&quot;, ParDo.of(new DoFn&lt;String, Payload&gt;() {
+                    private static final long serialVersionUID = 1L;
+
+                    @ProcessElement
+                    public void processElement(ProcessContext ctx) {
+                        String element = ctx.element();
+                        ObjectMapper mapper = new ObjectMapper();
+                        try {
+                            LinkedHashMap map = mapper.readValue(element, LinkedHashMap.class);                //Object payload = data.get(&quot;payload&quot;);
+                            LinkedHashMap payloadMap = (LinkedHashMap) map.get(&quot;payload&quot;);
+                            Payload payload = mapper.convertValue(payloadMap, Payload.class);
+                            payload.setDATA(mapper.writeValueAsString(payload.getDATA()));
+                            payload.setBEFORE(mapper.writeValueAsString(payload.getBEFORE()));
+                            ctx.output(payload);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }))
+                .setCoder(SerializableCoder.of(Payload.class))
+                .apply(&quot;转换Row&quot;, ParDo.of(new DoFn&lt;Payload, Row&gt;() {
+                    @ProcessElement
+                    public void processElement(ProcessContext cxt) {
+                        Payload payload = cxt.element();
+                        Row alarmRow = Row.withSchema(ckType).addValues(
+                                isnull(payload.getSCN()),
+                                isnull(payload.getSEG_OWNER()),
+                                isnull(payload.getTABLE_NAME()),
+                                isnull(new DateTime(payload.getTIMESTAMP())),
+                                isnull(payload.getSQL_REDO()),
+                                isnull(payload.getOPERATION()),
+                                isnull(payload.getDATA()),
+                                isnull(payload.getBEFORE())
+                        ).build();
+                        cxt.output(alarmRow);
+                    }
+                })).setRowSchema(ckType)
+                .apply(&quot;写入ClickHouse数据库&quot;,
+                        ClickHouseIO.&lt;Row&gt;write(&quot;jdbc:clickhouse://&quot; + options.getClickHouseUrl() + &quot;?username=&quot; + options.getClickHouseUserName() + &quot;&amp;password=&quot; + options.getClickHousePassword(), options.getClickHouseTableName())
+                                .withMaxRetries(3)//重试次数
+                                .withInsertDeduplicate(true)//重复数据是否删除
+                                .withMaxInsertBlockSize(1)//添加最大块的大小
+                                .withInitialBackoff(Duration.standardSeconds(5))//初始退回时间
+                                .withInsertDistributedSync(false)
+                );
+        p.run().waitUntilFinish();
+
+    }
+}
+
+
+</code></pre>
+<h2 id="把beam包在flink上运行">把beam包在flink上运行</h2>
+<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1607602332596.png" alt="" loading="lazy"></figure>
 
           <div class="toc-container"><ul class="markdownIt-TOC">
 <li>
 <ul>
-<li><a href="#1oracle%E9%85%8D%E7%BD%AE">1.oracle配置</a>
+<li><a href="#oracle%E9%85%8D%E7%BD%AE">oracle配置</a>
 <ul>
 <li><a href="#archivelog%E6%A8%A1%E5%BC%8F">archivelog模式</a></li>
 <li><a href="#%E5%90%AF%E7%94%A8%E8%A1%A5%E5%85%85%E6%97%A5%E5%BF%97%E8%AE%B0%E5%BD%95">启用补充日志记录</a></li>
 </ul>
 </li>
-<li><a href="#2kafka%E9%85%8D%E7%BD%AE">2.kafka配置</a>
+<li><a href="#kafka%E9%85%8D%E7%BD%AE">kafka配置</a>
 <ul>
 <li><a href="#%E6%8F%92%E4%BB%B6%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">插件配置文件</a></li>
+<li><a href="#%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E">配置说明</a></li>
+<li><a href="#%E6%B7%BB%E5%8A%A0kafka%E6%8F%92%E4%BB%B6%E5%8C%85">添加kafka插件包</a></li>
+<li><a href="#%E5%90%AF%E5%8A%A8%E6%8F%92%E4%BB%B6">启动插件</a></li>
+<li><a href="#kafka%E6%B6%88%E6%81%AF%E8%AF%B4%E6%98%8E">kafka消息说明</a></li>
 </ul>
 </li>
+<li><a href="#clickhouse-%E5%BB%BA%E8%A1%A8">ClickHouse 建表</a></li>
+<li><a href="#beam-%E7%A8%8B%E5%BA%8F">Beam 程序</a>
+<ul>
+<li><a href="#maven%E6%B7%BB%E5%8A%A0-%E4%BE%9D%E8%B5%96%E5%8C%85">maven添加 依赖包</a></li>
+<li><a href="#%E5%88%9B%E5%BB%BA%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0%E7%B1%BB">创建配置参数类</a></li>
+<li><a href="#kafka%E6%B6%88%E6%81%AF%E6%98%A0%E5%B0%84%E7%B1%BB">kafka消息映射类</a></li>
+<li><a href="#%E4%B8%BB%E7%A8%8B%E5%BA%8F">主程序</a></li>
+</ul>
+</li>
+<li><a href="#%E6%8A%8Abeam%E5%8C%85%E5%9C%A8flink%E4%B8%8A%E8%BF%90%E8%A1%8C">把beam包在flink上运行</a></li>
 </ul>
 </li>
 </ul>
