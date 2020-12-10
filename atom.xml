@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-10T10:54:08.315Z</updated>
+    <updated>2020-12-10T11:37:19.728Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -17,14 +17,149 @@
         </link>
         <updated>2020-12-10T10:19:02.000Z</updated>
         <content type="html"><![CDATA[<p>用kafka的oracle connect插件存储oracle日志，用beam读取kafka数据插入到clickhouse中</p>
-<h2 id="oracle开启归档模式">oracle开启归档模式</h2>
-<p>数据库必须处于archivelog模式，并且必须启用补充日志记录。<br>
+<h2 id="1oracle配置">1.oracle配置</h2>
+<h3 id="archivelog模式">archivelog模式</h3>
+<p>数据库必须处于archivelog模式，并且必须启用补充日志记录<br>
 在数据库服务器上执行</p>
 <pre><code>sqlplus / as sysdba    
 SQL&gt;shutdown immediate
 SQL&gt;startup mount
 SQL&gt;alter database archivelog;
 SQL&gt;alter database open;
+</code></pre>
+<h3 id="启用补充日志记录">启用补充日志记录</h3>
+<pre><code>sqlplus / as sysdba    
+SQL&gt;alter database add supplemental log data (all) columns;
+</code></pre>
+<h2 id="2kafka配置">2.kafka配置</h2>
+<h3 id="插件配置文件">插件配置文件</h3>
+<p>在$KAFKA_HOME/config 目录新建OracleSourceConnector.properties配置文件，<br>
+文件内示例配置</p>
+<pre><code>name=oracle-logminer-connector
+connector.class=com.ecer.kafka.connect.oracle.OracleSourceConnector
+db.name.alias=test
+tasks.max=1
+topic=cdctest
+db.name=testdb
+db.hostname=10.1.X.X
+db.port=1521
+db.user=kminer
+db.user.password=kminerpass
+db.fetch.size=1
+table.whitelist=TEST.*,TEST2.TABLE2
+table.blacklist=TEST2.TABLE3
+parse.dml.data=true
+reset.offset=false
+multitenant=false
+</code></pre>
+<p>配置说明</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td>String</td>
+<td>连接器名称</td>
+</tr>
+<tr>
+<td>connector.class</td>
+<td>String</td>
+<td>此连接器的Java类的名称</td>
+</tr>
+<tr>
+<td>db.name.alias</td>
+<td>String</td>
+<td>数据库的标识符名称（例如Test，Dev，Prod）或用于标识数据库的特定名称该名称将用作主题和架构名称的标头</td>
+</tr>
+<tr>
+<td>tasks.max</td>
+<td>Integer</td>
+<td>创建的最大任务数此连接器使用单个任务.</td>
+</tr>
+<tr>
+<td>topic</td>
+<td>String</td>
+<td>消息将写入的主题的名称如果设置了值，则所有消息都将写入此声明的topic，如果未设置，则将为每个数据库表动态创建一个主题</td>
+</tr>
+<tr>
+<td>db.name</td>
+<td>String</td>
+<td>要连接的数据库的服务名称或sid通常使用数据库服务名称</td>
+</tr>
+<tr>
+<td>db.hostname</td>
+<td>String</td>
+<td>Oracle数据库服务器的IP地址或主机名</td>
+</tr>
+<tr>
+<td>db.port</td>
+<td>Integer</td>
+<td>Oracle数据库服务器的端口号</td>
+</tr>
+<tr>
+<td>db.user</td>
+<td>String</td>
+<td>数据库的用户名</td>
+</tr>
+<tr>
+<td>db.user.password</td>
+<td>String</td>
+<td>数据库用户密码</td>
+</tr>
+<tr>
+<td>db.fetch.size</td>
+<td>Integer</td>
+<td>此配置属性设置Oracle行提取大小值</td>
+</tr>
+<tr>
+<td>table.whitelist</td>
+<td>String</td>
+<td>白名单格式为用户名.表名用逗号分隔，如果要收集用户下的所有的表，用用户名.*</td>
+</tr>
+<tr>
+<td>parse.dml.data</td>
+<td>Boolean</td>
+<td>如果为true，则将捕获的sql DML语句解析为字段和值;如果为false，则仅发布sql DML语句</td>
+</tr>
+<tr>
+<td>reset.offset</td>
+<td>Boolean</td>
+<td>如果为true，则在连接器启动时将偏移值设置为数据库的当前SCN如果为false，则连接器将从上一个偏移值开始</td>
+</tr>
+<tr>
+<td>start.scn</td>
+<td>Long</td>
+<td>如果设置此属性，则将偏移值设置为该指定值，并且logminer将从此SCN启动如果连接器希望从所需的SCN启动，则可以使用此属性</td>
+</tr>
+<tr>
+<td>multitenant</td>
+<td>Boolean</td>
+<td>如果为true，则启用多租户支持如果为false，将使用单实例配置</td>
+</tr>
+<tr>
+<td>table.blacklist</td>
+<td>String</td>
+<td>黑名单格式为用户名.表名用逗号分隔，如果要收集用户下的所有的表，用用户名.*.</td>
+</tr>
+<tr>
+<td>dml.types</td>
+<td>String</td>
+<td>以逗号分隔的DML操作列表（INSERT，UPDATE，DELETE）如果未指定，则将执行复制所有DML操作的默认行为，如果指定，则仅捕获指定的操作</td>
+</tr>
+</tbody>
+</table>
+<p>以上为机翻，原说明文档地址见 <a href="https://github.com/erdemcer/kafka-connect-oracle/blob/master/README.md">https://github.com/erdemcer/kafka-connect-oracle/blob/master/README.md</a></p>
+<p>添加kafka插件包</p>
+<p><a href="https://www.jianguoyun.com/p/DSQTC_AQz5aGCRiHodMD"><mark>kafka-connect-oracle-1.0.68.jar</mark></a>和相应版本的oracle的驱动包放入到 $KAFKA_HOME/lib文件夹中</p>
+<p>启动插件</p>
+<pre><code>cd $KAFKA_HOME
+./bin/connect-standalone.sh ./config/connect-standalone.properties ./config/OracleSourceConnector.properties
 </code></pre>
 ]]></content>
     </entry>
