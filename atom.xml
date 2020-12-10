@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-    <id>https://oldcamel.vercel.app</id>
+    <id>https://vxch.vercel.app</id>
     <title>Old Camel</title>
-    <updated>2020-12-10T03:31:33.590Z</updated>
+    <updated>2020-12-10T03:31:51.837Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
-    <link rel="alternate" href="https://oldcamel.vercel.app"/>
-    <link rel="self" href="https://oldcamel.vercel.app/atom.xml"/>
+    <link rel="alternate" href="https://vxch.vercel.app"/>
+    <link rel="self" href="https://vxch.vercel.app/atom.xml"/>
     <subtitle>日常开发记录</subtitle>
-    <logo>https://oldcamel.vercel.app/images/avatar.png</logo>
-    <icon>https://oldcamel.vercel.app/favicon.ico</icon>
+    <logo>https://vxch.vercel.app/images/avatar.png</logo>
+    <icon>https://vxch.vercel.app/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
     <entry>
         <title type="html"><![CDATA[Test]]></title>
-        <id>https://oldcamel.vercel.app/post/test/</id>
-        <link href="https://oldcamel.vercel.app/post/test/">
+        <id>https://vxch.vercel.app/post/test/</id>
+        <link href="https://vxch.vercel.app/post/test/">
         </link>
         <updated>2020-12-09T06:38:56.000Z</updated>
         <content type="html"><![CDATA[<p>`</p>
@@ -298,8 +298,8 @@ public void text_time_types() throws Exception {
     </entry>
     <entry>
         <title type="html"><![CDATA[Hello Gridea]]></title>
-        <id>https://oldcamel.vercel.app/post/hello-gridea/</id>
-        <link href="https://oldcamel.vercel.app/post/hello-gridea/">
+        <id>https://vxch.vercel.app/post/hello-gridea/</id>
+        <link href="https://vxch.vercel.app/post/hello-gridea/">
         </link>
         <updated>2018-12-11T16:00:00.000Z</updated>
         <summary type="html"><![CDATA[<p>👏  欢迎使用 <strong>Gridea</strong> ！<br>
