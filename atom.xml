@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.vercel.app</id>
     <title>Old Camel</title>
-    <updated>2020-12-10T03:27:47.647Z</updated>
+    <updated>2020-12-10T03:31:33.590Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.vercel.app"/>
     <link rel="self" href="https://oldcamel.vercel.app/atom.xml"/>
