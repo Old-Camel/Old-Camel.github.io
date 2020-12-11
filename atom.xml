@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-11T01:19:29.049Z</updated>
+    <updated>2020-12-11T06:04:40.354Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -10,6 +10,280 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[flowable获取当前任务节点下一步会创建的用户任务]]></title>
+        <id>https://oldcamel.run/post/flowable-nexttask/</id>
+        <link href="https://oldcamel.run/post/flowable-nexttask/">
+        </link>
+        <updated>2020-12-11T05:58:52.000Z</updated>
+        <content type="html"><![CDATA[<h2 id="获取方法">获取方法</h2>
+<pre><code class="language-java">package xxxx.util;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.greenpineyu.fel.FelEngine;
+import com.greenpineyu.fel.FelEngineImpl;
+import com.greenpineyu.fel.context.FelContext;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.BooleanUtils;
+import org.flowable.bpmn.converter.BpmnXMLConverter;
+import org.flowable.bpmn.model.*;
+import org.flowable.bpmn.model.Process;
+import org.flowable.engine.HistoryService;
+import org.flowable.engine.RepositoryService;
+import org.flowable.engine.RuntimeService;
+import org.flowable.engine.TaskService;
+import org.flowable.engine.history.HistoricProcessInstance;
+import org.flowable.engine.impl.bpmn.parser.BpmnParse;
+import org.flowable.engine.impl.bpmn.parser.BpmnParser;
+import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.flowable.engine.impl.persistence.deploy.ProcessDefinitionCacheEntry;
+import org.flowable.engine.impl.persistence.entity.DeploymentEntity;
+import org.flowable.engine.impl.persistence.entity.DeploymentEntityManager;
+import org.flowable.engine.repository.ProcessDefinition;
+import org.flowable.bpmn.model.Task;
+import org.flowable.ui.modeler.domain.Model;
+import org.flowable.ui.modeler.serviceapi.ModelService;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.util.*;
+
+public class FlowUtils {
+
+
+    /**
+     * 获取下一步骤的用户任务
+     *
+     * @param repositoryService
+     * @param taskService
+     * @param map
+     * @return
+     */
+    public static List&lt;UserTask&gt; getNextUserTasks(RepositoryService repositoryService, TaskService taskService, org.flowable.task.api.Task task, Map&lt;String, Object&gt; map) {
+        List&lt;UserTask&gt; data = new ArrayList&lt;&gt;();
+        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionId(task.getProcessDefinitionId()).singleResult();
+        BpmnModel bpmnModel = repositoryService.getBpmnModel(processDefinition.getId());
+        Process mainProcess = bpmnModel.getMainProcess();
+        Collection&lt;FlowElement&gt; flowElements = mainProcess.getFlowElements();
+        String key = task.getTaskDefinitionKey();
+        FlowElement flowElement = bpmnModel.getFlowElement(key);
+        next(flowElements, flowElement, map, data);
+        return data;
+    }
+
+    public static void next(Collection&lt;FlowElement&gt; flowElements, FlowElement flowElement, Map&lt;String, Object&gt; map, List&lt;UserTask&gt; nextUser) {
+        //如果是结束节点
+        if (flowElement instanceof EndEvent) {
+            //如果是子任务的结束节点
+            if (getSubProcess(flowElements, flowElement) != null) {
+                flowElement = getSubProcess(flowElements, flowElement);
+            }
+        }
+        //获取Task的出线信息--可以拥有多个
+        List&lt;SequenceFlow&gt; outGoingFlows = null;
+        if (flowElement instanceof Task) {
+            outGoingFlows = ((Task) flowElement).getOutgoingFlows();
+        } else if (flowElement instanceof Gateway) {
+            outGoingFlows = ((Gateway) flowElement).getOutgoingFlows();
+        } else if (flowElement instanceof StartEvent) {
+            outGoingFlows = ((StartEvent) flowElement).getOutgoingFlows();
+        } else if (flowElement instanceof SubProcess) {
+            outGoingFlows = ((SubProcess) flowElement).getOutgoingFlows();
+        } else if (flowElement instanceof CallActivity) {
+            outGoingFlows = ((CallActivity) flowElement).getOutgoingFlows();
+        }
+        if (outGoingFlows != null &amp;&amp; outGoingFlows.size() &gt; 0) {
+            //遍历所有的出线--找到可以正确执行的那一条
+            for (SequenceFlow sequenceFlow : outGoingFlows) {
+                //1.有表达式，且为true
+                //2.无表达式
+                String expression = sequenceFlow.getConditionExpression();
+                if (expression == null ||
+                        Boolean.valueOf(
+                                String.valueOf(
+                                        result(map, expression.substring(expression.lastIndexOf(&quot;{&quot;) + 1, expression.lastIndexOf(&quot;}&quot;)))))) {
+                    //出线的下一节点
+                    String nextFlowElementID = sequenceFlow.getTargetRef();
+                    if (checkSubProcess(nextFlowElementID, flowElements, nextUser)) {
+                        continue;
+                    }
+
+                    //查询下一节点的信息
+                    FlowElement nextFlowElement = getFlowElementById(nextFlowElementID, flowElements);
+                    //调用流程
+                    if (nextFlowElement instanceof CallActivity) {
+                        CallActivity ca = (CallActivity) nextFlowElement;
+                        if (ca.getLoopCharacteristics() != null) {
+                            UserTask userTask = new UserTask();
+                            userTask.setId(ca.getId());
+
+                            userTask.setId(ca.getId());
+                            userTask.setLoopCharacteristics(ca.getLoopCharacteristics());
+                            userTask.setName(ca.getName());
+                            nextUser.add(userTask);
+                        }
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                    //用户任务
+                    if (nextFlowElement instanceof UserTask) {
+                        nextUser.add((UserTask) nextFlowElement);
+                    }
+                    //排他网关
+                    else if (nextFlowElement instanceof ExclusiveGateway) {
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                    //并行网关
+                    else if (nextFlowElement instanceof ParallelGateway) {
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                    //接收任务
+                    else if (nextFlowElement instanceof ReceiveTask) {
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                    //服务任务
+                    else if (nextFlowElement instanceof ServiceTask) {
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                    //子任务的起点
+                    else if (nextFlowElement instanceof StartEvent) {
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                    //结束节点
+                    else if (nextFlowElement instanceof EndEvent) {
+                        next(flowElements, nextFlowElement, map, nextUser);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 判断是否是多实例子流程并且需要设置集合类型变量
+     */
+    public static boolean checkSubProcess(String Id, Collection&lt;FlowElement&gt; flowElements, List&lt;UserTask&gt; nextUser) {
+        for (FlowElement flowElement1 : flowElements) {
+            if (flowElement1 instanceof SubProcess &amp;&amp; flowElement1.getId().equals(Id)) {
+
+                SubProcess sp = (SubProcess) flowElement1;
+                if (sp.getLoopCharacteristics() != null) {
+                    String inputDataItem = sp.getLoopCharacteristics().getInputDataItem();
+                    UserTask userTask = new UserTask();
+                    userTask.setId(sp.getId());
+                    userTask.setLoopCharacteristics(sp.getLoopCharacteristics());
+                    userTask.setName(sp.getName());
+                    nextUser.add(userTask);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+
+    }
+
+    /**
+     * 查询一个节点的是否子任务中的节点，如果是，返回子任务
+     *
+     * @param flowElements 全流程的节点集合
+     * @param flowElement  当前节点
+     * @return
+     */
+    public static FlowElement getSubProcess(Collection&lt;FlowElement&gt; flowElements, FlowElement flowElement) {
+        for (FlowElement flowElement1 : flowElements) {
+            if (flowElement1 instanceof SubProcess) {
+                for (FlowElement flowElement2 : ((SubProcess) flowElement1).getFlowElements()) {
+                    if (flowElement.equals(flowElement2)) {
+                        return flowElement1;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * 根据ID查询流程节点对象, 如果是子任务，则返回子任务的开始节点
+     *
+     * @param Id           节点ID
+     * @param flowElements 流程节点集合
+     * @return
+     */
+    public static FlowElement getFlowElementById(String Id, Collection&lt;FlowElement&gt; flowElements) {
+        for (FlowElement flowElement : flowElements) {
+            if (flowElement.getId().equals(Id)) {
+                //如果是子任务，则查询出子任务的开始节点
+                if (flowElement instanceof SubProcess) {
+                    return getStartFlowElement(((SubProcess) flowElement).getFlowElements());
+                }
+                return flowElement;
+            }
+            if (flowElement instanceof SubProcess) {
+                FlowElement flowElement1 = getFlowElementById(Id, ((SubProcess) flowElement).getFlowElements());
+                if (flowElement1 != null) {
+                    return flowElement1;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 返回流程的开始节点
+     *
+     * @param flowElements 节点集合
+     * @description:
+     */
+    public static FlowElement getStartFlowElement(Collection&lt;FlowElement&gt; flowElements) {
+        for (FlowElement flowElement : flowElements) {
+            if (flowElement instanceof StartEvent) {
+                return flowElement;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 校验el表达示例
+     *
+     * @param map
+     * @param expression
+     * @return
+     */
+    public static Object result(Map&lt;String, Object&gt; map, String expression) {
+        FelEngine fel = new FelEngineImpl();
+        FelContext ctx = fel.getContext();
+        for (Map.Entry&lt;String, Object&gt; entry : map.entrySet()) {
+            ctx.set(entry.getKey(), entry.getValue());
+        }
+        Object result = fel.eval(expression);
+        return result;
+    }
+
+}
+
+
+</code></pre>
+<h2 id="maven-el表达式校验的依赖">maven  el表达式校验的依赖</h2>
+<pre><code class="language-xml">&lt;dependency&gt; 
+    &lt;groupId&gt;org.eweb4j&lt;/groupId&gt; 
+    &lt;artifactId&gt;fel&lt;/artifactId&gt; 
+    &lt;version&gt;0.8&lt;/version&gt; 
+&lt;/dependency&gt;
+
+</code></pre>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[ Beam+Kafka同步Oracle日志到ClickHouse]]></title>
         <id>https://oldcamel.run/post/apache-beam-tong-bu-oracle-ri-zhi-dao-clickhouse/</id>
