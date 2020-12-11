@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta content="yes" name="apple-mobile-web-app-capable" />
+<meta content="black" name="apple-mobile-web-app-status-bar-style" />
+<meta name="referrer" content="never">
+<meta name="keywords" content="">
+<meta name="description" content="欢迎访问[Old Camel]的个人博客">
+<meta name="author" content="kveln">
+<title>flowable修改流程缓存实现自由流程 | Old Camel</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
+<link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
+<link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+<link
+  href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
+  rel='stylesheet' type='text/css'>
+<link rel="alternate" type="application/rss+xml" title="flowable修改流程缓存实现自由流程 | Old Camel » Feed"
+  href="https://oldcamel.run/atom.xml">
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
+<link href="https://oldcamel.run/styles/main.css" rel="stylesheet">
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/css/live2d.css">
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3TQNJ5FTMN"></script>
+<script>window.dataLayer = window.dataLayer || [];
+    function gtag() {
+      dataLayer.push(arguments)
+    }
+    gtag('js', new Date());
+    gtag('config', 'G-3TQNJ5FTMN');</script>
+
+  <meta property="og:description" content="flowable修改流程缓存实现自由流程" />
+  <meta property="og:url" content="https://oldcamel.run/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/" />
+  <meta property="og:locale" content="zh-CN" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Old Camel" />
+  <!-- <script src="../assets/styles/scripts/tocScript.js"></script> -->
+</head>
+
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="https://oldcamel.run">Old Camel</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
+      data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
+      aria-label="Toggle navigation">
+      Menu
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/">首页</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/archives">归档</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/tags">标签</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/post/about">关于</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          <div class="gridea-search-container">
+            <form id="gridea-search-form" style="position: relative" data-update="1607675639340"
+              action="/search/index.html">
+              <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+              <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+  <!-- Page Header -->
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="https://oldcamel.run">Old Camel</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
+      data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
+      aria-label="Toggle navigation">
+      Menu
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/">首页</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/archives">归档</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/tags">标签</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/post/about">关于</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          <div class="gridea-search-container">
+            <form id="gridea-search-form" style="position: relative" data-update="1607675639340"
+              action="/search/index.html">
+              <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+              <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<header class="masthead" style="background-image: url('https://oldcamel.run/media/images/home-bg.jpg')">
+  <div class="overlay"></div>
+  <div class="container">
+
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        
+          <!-- 没Title为其他页面Header -->
+          
+            <!-- 没Title并且有headerType为Post：文章Header -->
+            <div class="post-heading">
+              <span class="tags">
+                
+              </span>
+              <h1>flowable修改流程缓存实现自由流程</h1>
+              <span class="meta">
+                Posted on
+                2020-12-11，5 min read
+              </span>
+            </div>
+          
+        
+      </div>
+    </div>
+  </div>
+</header>
+  <!-- Post Content -->
+  <article id="post-content-article">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto post-content-container">
+          
+          <p><br>
+flowable中会对流程定义做缓存处理，在实现自由流程的时候需要动态给流程定义添加节点，默认的是对流程定义做的缓存，要想在每个流程实例中动态添加节点，可以通过修改流程缓存，添加每个流程实例的缓存</p>
+<h2 id="涉及到的类">涉及到的类</h2>
+<figure data-type="image" tabindex="1"><img src="https://img-blog.csdnimg.cn/20200410174158592.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM5MTM4NjE0,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" loading="lazy"></figure>
+<h2 id="主要步骤">主要步骤</h2>
+<ul>
+<li>步骤1：修改BpmnJsonConverter,添加自定义属性，区分流程是否为自由流程</li>
+<li>步骤2：设置全局的FlowableEventListener( FlowableEngineEventType. ACTIVITY_COMPLETED ),在流程启动的时候判断流程是否为自由流程，如果是的话，把流程的bpmnModel转成xml设置到自己定义的缓存对象中，然后保存到redis里。<br>
+Redis采用了Hash方式存储，key为流程实例ID,value为自定义缓存类。</li>
+<li>步骤3：自由流程添加节点的时候提前把流程实例id放在request作用域中</li>
+<li>步骤4：定义 DefaultDeploymentCache 子类重写get方法，如果是自定义流程并且request作用域中有流程实例id就中redis中获取流程定义json转换成 ProcessDefinitionCacheEntry</li>
+<li>步骤5：定义自由流程命令类，获取流程定义缓存，给里面添加连线和节点</li>
+<li>步骤6：往新加的节点上跳转</li>
+</ul>
+<h2 id="放入缓存主要代码">放入缓存主要代码</h2>
+<p>if (FlowUtils.isFreeProcess(entity.getProcessDefinitionId())) {</p>
+<pre><code class="language-java"> //放入缓存
+    ProcessDefinitionCacheEntry processDefinitionCacheEntry = managementService.executeCommand(new GetProcessDefinitionCacheEntryCmd(entity.getProcessDefinitionId()));
+    CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = FlowUtils.parseCustomProcessDefinitionCacheEntry(processDefinitionCacheEntry);
+    FreeProcessCaChe cache = SpringUtil.getBean(FreeProcessCaChe.class);
+    cache.add(entity.getProcessInstanceId(), customProcessDefinitionCacheEntry);
+}
+</code></pre>
+<h2 id="下方为以上用到的类以及方法">下方为以上用到的类以及方法</h2>
+<ul>
+<li>获取缓存命令类</li>
+</ul>
+<pre><code class="language-java">public class GetProcessDefinitionCacheEntryCmd implements Command&lt;ProcessDefinitionCacheEntry&gt; {
+	protected String processDefinitionId;
+
+	public GetProcessDefinitionCacheEntryCmd(String processDefinitionId) {
+		this.processDefinitionId = processDefinitionId;
+	}
+
+	@Override
+	public ProcessDefinitionCacheEntry execute(CommandContext commandContext) {
+		DeploymentManager deploymentManager = CommandContextUtil.getProcessEngineConfiguration().getDeploymentManager();
+		ProcessDefinitionCacheEntry processDefinitionCacheEntry = deploymentManager.getProcessDefinitionCache()
+				.get(processDefinitionId);
+		return processDefinitionCacheEntry;
+	}
+
+}
+</code></pre>
+<ul>
+<li>序列化缓存对象方法</li>
+</ul>
+<pre><code class="language-java"> public static CustomProcessDefinitionCacheEntry parseCustomProcessDefinitionCacheEntry(ProcessDefinitionCacheEntry processDefinitionCacheEntry) {
+    CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = new CustomProcessDefinitionCacheEntry();
+    ProcessDefinition processDefinition = processDefinitionCacheEntry.getProcessDefinition();
+    String resourceName = processDefinition.getResourceName();
+    String deploymentId = processDefinition.getDeploymentId();
+    BpmnModel bpmnModel = processDefinitionCacheEntry.getBpmnModel();
+    BpmnXMLConverter bpmnXMLConverter = new BpmnXMLConverter();
+    byte[] bytes = bpmnXMLConverter.convertToXML(bpmnModel);
+    customProcessDefinitionCacheEntry.setBpmnModel(bytes);
+    customProcessDefinitionCacheEntry.setDeploymentId(deploymentId);
+    customProcessDefinitionCacheEntry.setResourceName(resourceName);
+    return customProcessDefinitionCacheEntry;
+}
+</code></pre>
+<ul>
+<li>Redis存储的对象</li>
+</ul>
+<pre><code class="language-java">@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class CustomProcessDefinitionCacheEntry implements Serializable {
+    private static final long serialVersionUID = 6833801933658529071L;
+    protected  String deploymentId;
+    protected  String resourceName;
+    protected byte[] bpmnModel;
+}
+</code></pre>
+<ul>
+<li>添加到redis接口</li>
+</ul>
+<pre><code class="language-java">public interface FreeProcessCaChe {
+    CustomProcessDefinitionCacheEntry get(String key);
+    void set(String key,CustomProcessDefinitionCacheEntry process);
+
+    boolean contains(String key);
+
+    void add(String key, CustomProcessDefinitionCacheEntry process);
+
+    void remove(String key);
+
+    void clear();
+}
+</code></pre>
+<ul>
+<li>添加到redis接口实现</li>
+</ul>
+<pre><code class="language-java">@Service
+public class FreeProcessCaCheImpl implements FreeProcessCaChe {
+    private String hashkey = &quot;freeprocesscache&quot;;
+
+    @PostConstruct
+    public void init() {
+        boolean b = redisUtil.hasKey(hashkey);
+        if (!b) {
+            redisUtil.hset(hashkey, &quot;init&quot;, &quot;init&quot;);
+        }
+    }
+
+
+    @Autowired
+    private RedisUtil redisUtil;
+
+    @Override
+    public CustomProcessDefinitionCacheEntry get(String key) {
+        if (StringUtils.isBlank(key)) {
+            return null;
+        }
+        Object value = redisUtil.hget(hashkey, key);
+        if (value != null) {
+            JSONObject jb = (JSONObject) value;
+            CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = JSON.toJavaObject(jb, CustomProcessDefinitionCacheEntry.class);
+            return customProcessDefinitionCacheEntry;
+        }
+        return null;
+    }
+
+    @Override
+    public boolean contains(String key) {
+        return redisUtil.hHasKey(hashkey, key);
+    }
+
+    @Override
+    public void add(String key, CustomProcessDefinitionCacheEntry process) {
+        boolean hset = redisUtil.hset(hashkey, key, process);
+        if (!hset) {
+            throw new CheckErrorException(&quot;缓存自由流程信息失败&quot;);
+        }
+    }
+
+    @Override
+    public void set(String key, CustomProcessDefinitionCacheEntry process) {
+        boolean hset = redisUtil.hset(hashkey, key, process);
+        if (!hset) {
+            throw new CheckErrorException(&quot;更新自由流程信息失败&quot;);
+        }
+    }
+
+    @Override
+    public void remove(String key) {
+        redisUtil.hdel(hashkey, key);
+    }
+
+    @Override
+    public void clear() {
+        redisUtil.hmset(hashkey, Maps.newHashMap());
+    }
+}
+</code></pre>
+<h2 id="修改流程配置类添加自定义缓存获取">修改流程配置类添加自定义缓存获取</h2>
+<pre><code class="language-java">springProcessEngineConfiguration.setProcessDefinitionCache(new CustomDeploymentCache&lt;&gt;());
+</code></pre>
+<p>设置的自定义缓存获取类（主要是重写获取缓存的get方法，以下仅为参考）</p>
+<pre><code class="language-java">public class CustomDeploymentCache&lt;T&gt; extends DefaultDeploymentCache&lt;T&gt;  {
+    @Override
+    public T get(String id) {
+        T t = super.get(id);
+        if(t==null){
+            return  t;
+        }
+        String processInstanceId=null;
+        try {
+             processInstanceId = (String) FlowUtils.getRequest().getAttribute(&quot;processInstanceId&quot;);
+            if (StringUtils.isBlank(processInstanceId)) {
+                return t;
+            }
+        }catch (Exception e){
+            return t;
+        }
+        if(t instanceof ProcessDefinitionCacheEntry) {
+            JSONObject jsonObject = new JSONObject();
+            Process mainProcess = ((ProcessDefinitionCacheEntry) t).getBpmnModel().getMainProcess();
+            String processGlobelSettings = &quot;processGlobelSettings&quot;;
+            List&lt;ExtensionElement&gt; extensionElements = mainProcess.getExtensionElements().get(processGlobelSettings);
+            if (extensionElements != null &amp;&amp; (!extensionElements.isEmpty())) {
+                ExtensionElement extensionElement = extensionElements.get(0);
+                String elementText = extensionElement.getElementText();
+                jsonObject = JSON.parseObject(elementText, Feature.OrderedField);
+            }
+           boolean freeProcess=jsonObject.getBooleanValue(&quot;freeProcess&quot;);
+            if (!freeProcess) {
+                return super.get(id);
+            } else {
+                //从缓存中取值
+                FreeProcessCaChe cache = SpringUtil.getBean(FreeProcessCaChe.class);
+                CustomProcessDefinitionCacheEntry redisProcessDefinitionCacheEntry = cache.get(processInstanceId);
+                BpmnModel bpmnModel=null;
+                if(redisProcessDefinitionCacheEntry==null){
+                    return  t;
+                }else {
+                    try {
+                        bpmnModel = FlowUtils.parseBpmnModelFromCustomProcessDefinitionCacheEntry(redisProcessDefinitionCacheEntry);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                Process process = bpmnModel.getMainProcess();
+                RuntimeService  runtimeService = SpringUtil.getBean(RuntimeService.class);
+                RepositoryService repositoryService = SpringUtil.getBean(RepositoryService.class);
+                ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult();
+                String processDefinitionId = processInstance.getProcessDefinitionId();
+                ProcessDefinition dataProcessDefinition = null;
+                if(t!=null){
+                    ProcessDefinitionCacheEntry pdc=(ProcessDefinitionCacheEntry)t;
+                    dataProcessDefinition=pdc.getProcessDefinition();
+                }else{
+                    dataProcessDefinition=repositoryService.createProcessDefinitionQuery().processDefinitionId(processDefinitionId).singleResult();
+                }
+                ProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = new ProcessDefinitionCacheEntry(dataProcessDefinition,bpmnModel,process);
+
+                return (T) customProcessDefinitionCacheEntry;
+            }
+        }else{
+            return super.get(id);
+        }
+    }
+}
+</code></pre>
+
+          <div class="toc-container"><ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E6%B6%89%E5%8F%8A%E5%88%B0%E7%9A%84%E7%B1%BB">涉及到的类</a></li>
+<li><a href="#%E4%B8%BB%E8%A6%81%E6%AD%A5%E9%AA%A4">主要步骤</a></li>
+<li><a href="#%E6%94%BE%E5%85%A5%E7%BC%93%E5%AD%98%E4%B8%BB%E8%A6%81%E4%BB%A3%E7%A0%81">放入缓存主要代码</a></li>
+<li><a href="#%E4%B8%8B%E6%96%B9%E4%B8%BA%E4%BB%A5%E4%B8%8A%E7%94%A8%E5%88%B0%E7%9A%84%E7%B1%BB%E4%BB%A5%E5%8F%8A%E6%96%B9%E6%B3%95">下方为以上用到的类以及方法</a></li>
+<li><a href="#%E4%BF%AE%E6%94%B9%E6%B5%81%E7%A8%8B%E9%85%8D%E7%BD%AE%E7%B1%BB%E6%B7%BB%E5%8A%A0%E8%87%AA%E5%AE%9A%E4%B9%89%E7%BC%93%E5%AD%98%E8%8E%B7%E5%8F%96">修改流程配置类添加自定义缓存获取</a></li>
+</ul>
+</li>
+</ul>
+</div>
+          
+          <hr />
+          <p class="next-post">下一篇：
+            <a href="https://oldcamel.run/post/flowable-nexttask/">
+              <span class="post-title">
+                flowable获取当前任务节点下一步会创建的用户任务&rarr;
+              </span>
+            </a>
+          </p>
+          
+          <div class="comment" style="text-align: center;">
+            
+            <span id="/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/" class="leancloud_visitors"
+              data-flag-title="flowable修改流程缓存实现自由流程">
+              <em class="post-meta-item-text">阅读量 </em>
+              <i class="leancloud-visitors-count">loading...</i>
+            </span>
+            
+
+            
+            
+            <script src='https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js'></script>
+
+<style>
+	div#vcomments{
+		width:100%;
+		max-width: 1000px;
+		padding: 2.5%
+	}
+</style>
+
+
+	<div id="vcomments"></div>
+
+<script>
+	new Valine({
+		el: '#vcomments',
+		appId: 'onbNkh3VH7sc2nRqV46lac7B-gzGzoHsz',
+		appKey: 'uiNYrD5ID5uBx8ri4YKzgz7K',
+		avatar: 'monsterid',
+		pageSize: 5,
+		recordIp: true,
+		placeholder: '留下点啥吧',
+		visitor: true,
+	});
+</script>
+
+            
+          </div>
+        </div>
+      </div>
+  </article>
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <ul class="list-inline text-center">
+            
+            
+            <li class="list-inline-item">
+              <a href="https://github.com/Old-Camel" target="_blank">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+            </li>
+            
+              
+            
+              
+            
+              
+            
+              
+            
+              
+            
+              
+            
+              
+              <!-- <li class="list-inline-item">
+              <a href="https://oldcamel.run/atom.xml" target="_blank">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+              </li> -->
+          </ul>
+          <p class="copyright text-muted">Copyright &copy;<span>Old Camel</span><br><a href="https://github.com/getgridea/gridea" class="Themeinfo">Powered by Gridea</a></p>
+        </div>
+      </div>
+    </div>
+   </footer>
+  <!-- Bootstrap core JavaScript -->
+  <script src="https://cdn.bootcss.com/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+  <!-- <script src="https://oldcamel.run/media/scripts/bootstrap.bundle.min.js"></script> -->
+  <!-- Bootstrap core JavaScript -->
+  <script src="https://cdn.jsdelivr.net/gh/Alanrk/clean-cdn@1.0/scripts/clean-blog.min.js"></script>
+  <!-- <script src="https://oldcamel.run/media/scripts/clean-blog.min.js"></script> -->
+  <script src="//instant.page/3.0.0" type="module" defer integrity="sha384-OeDn4XE77tdHo8pGtE1apMPmAipjoxUQ++eeJa6EtJCfHlvijigWiJpD7VDPWXV1"></script>
+  <style type="text/css">a.back_to_top{text-decoration:none;position:fixed;bottom:40px;right:30px;background:#f0f0f0;height:40px;width:40px;border-radius:50%;line-height:36px;font-size:18px;text-align:center;transition-duration:.5s;transition-propety:background-color;display:none}a.back_to_top span{color:#888}a.back_to_top:hover{cursor:pointer;background:#dfdfdf}a.back_to_top:hover span{color:#555}@media print,screen and(max-width:580px){.back_to_top{display:none!important}}</style>
+<a id="back_to_top" href="#" class="back_to_top">
+  <span>▲</span></a>
+<script>$(document).ready((function(_this) {
+    return function() {
+      var bt;
+      bt = $('#back_to_top');
+      if ($(document).width() > 480) {
+        $(window).scroll(function() {
+          var st;
+          st = $(window).scrollTop();
+          if (st > 30) {
+            return bt.css('display', 'block')
+          } else {
+            return bt.css('display', 'none')
+          }
+        });
+        return bt.click(function() {
+          $('body,html').animate({
+            scrollTop: 0
+          },
+          800);
+          return false
+        })
+      }
+    }
+  })(this));</script>
+  
+  <div id="landlord-parent">
+    <div id="landlord">
+        <div class="message" style="opacity:0"></div>
+        <canvas id="live2d" width="240" height="250" class="live2d"></canvas>
+    </div>
+</div>
+
+<script type="text/javascript">
+    if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+        //移动端
+        console.log("------ 移动端");
+    } else {
+        console.log("------ PC端 " + navigator.userAgent);
+
+        addScript("https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/js/live2d.js", () => {
+            // 加载完成后再loadlive2d
+            loadlive2d("live2d", "https://oldcamel.run/media/live2d/assets/hijiki.model.json");
+        });
+
+        var home_Path = "https://oldcamel.run/";
+        addScript("https://oldcamel.run/media/live2d/js/message.js", () => { });
+    }
+
+    // 插入js文件，完成后callback
+    function addScript(jsfile, callback) {
+        var landlord_parent = document.getElementById("landlord-parent");
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = jsfile;
+        landlord_parent.appendChild(script);
+        script.onload = script.onreadystatechange = function () {
+            if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
+                script.onload = script.onreadystatechange = null;
+                if (callback && typeof callback == "function") {
+                    callback(); //window[callback]();如果传递字符串过来 调用window['函数名']() 调用方法
+                }
+            }
+        };
+    }
+</script>
+  
+  <script src="https://oldcamel.run/media/scripts/tocScript.js"></script>
+</body>
+
+</html>

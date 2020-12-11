@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-11T07:36:50.483Z</updated>
+    <updated>2020-12-11T08:34:05.611Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -11,6 +11,238 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[flowable修改流程缓存实现自由流程]]></title>
+        <id>https://oldcamel.run/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/</id>
+        <link href="https://oldcamel.run/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/">
+        </link>
+        <updated>2020-12-11T08:32:34.000Z</updated>
+        <content type="html"><![CDATA[<p><br>
+flowable中会对流程定义做缓存处理，在实现自由流程的时候需要动态给流程定义添加节点，默认的是对流程定义做的缓存，要想在每个流程实例中动态添加节点，可以通过修改流程缓存，添加每个流程实例的缓存</p>
+<h2 id="涉及到的类">涉及到的类</h2>
+<figure data-type="image" tabindex="1"><img src="https://img-blog.csdnimg.cn/20200410174158592.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM5MTM4NjE0,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" loading="lazy"></figure>
+<h2 id="主要步骤">主要步骤</h2>
+<ul>
+<li>步骤1：修改BpmnJsonConverter,添加自定义属性，区分流程是否为自由流程</li>
+<li>步骤2：设置全局的FlowableEventListener( FlowableEngineEventType. ACTIVITY_COMPLETED ),在流程启动的时候判断流程是否为自由流程，如果是的话，把流程的bpmnModel转成xml设置到自己定义的缓存对象中，然后保存到redis里。<br>
+Redis采用了Hash方式存储，key为流程实例ID,value为自定义缓存类。</li>
+<li>步骤3：自由流程添加节点的时候提前把流程实例id放在request作用域中</li>
+<li>步骤4：定义 DefaultDeploymentCache 子类重写get方法，如果是自定义流程并且request作用域中有流程实例id就中redis中获取流程定义json转换成 ProcessDefinitionCacheEntry</li>
+<li>步骤5：定义自由流程命令类，获取流程定义缓存，给里面添加连线和节点</li>
+<li>步骤6：往新加的节点上跳转</li>
+</ul>
+<h2 id="放入缓存主要代码">放入缓存主要代码</h2>
+<p>if (FlowUtils.isFreeProcess(entity.getProcessDefinitionId())) {</p>
+<pre><code class="language-java"> //放入缓存
+    ProcessDefinitionCacheEntry processDefinitionCacheEntry = managementService.executeCommand(new GetProcessDefinitionCacheEntryCmd(entity.getProcessDefinitionId()));
+    CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = FlowUtils.parseCustomProcessDefinitionCacheEntry(processDefinitionCacheEntry);
+    FreeProcessCaChe cache = SpringUtil.getBean(FreeProcessCaChe.class);
+    cache.add(entity.getProcessInstanceId(), customProcessDefinitionCacheEntry);
+}
+</code></pre>
+<h2 id="下方为以上用到的类以及方法">下方为以上用到的类以及方法</h2>
+<ul>
+<li>获取缓存命令类</li>
+</ul>
+<pre><code class="language-java">public class GetProcessDefinitionCacheEntryCmd implements Command&lt;ProcessDefinitionCacheEntry&gt; {
+	protected String processDefinitionId;
+
+	public GetProcessDefinitionCacheEntryCmd(String processDefinitionId) {
+		this.processDefinitionId = processDefinitionId;
+	}
+
+	@Override
+	public ProcessDefinitionCacheEntry execute(CommandContext commandContext) {
+		DeploymentManager deploymentManager = CommandContextUtil.getProcessEngineConfiguration().getDeploymentManager();
+		ProcessDefinitionCacheEntry processDefinitionCacheEntry = deploymentManager.getProcessDefinitionCache()
+				.get(processDefinitionId);
+		return processDefinitionCacheEntry;
+	}
+
+}
+</code></pre>
+<ul>
+<li>序列化缓存对象方法</li>
+</ul>
+<pre><code class="language-java"> public static CustomProcessDefinitionCacheEntry parseCustomProcessDefinitionCacheEntry(ProcessDefinitionCacheEntry processDefinitionCacheEntry) {
+    CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = new CustomProcessDefinitionCacheEntry();
+    ProcessDefinition processDefinition = processDefinitionCacheEntry.getProcessDefinition();
+    String resourceName = processDefinition.getResourceName();
+    String deploymentId = processDefinition.getDeploymentId();
+    BpmnModel bpmnModel = processDefinitionCacheEntry.getBpmnModel();
+    BpmnXMLConverter bpmnXMLConverter = new BpmnXMLConverter();
+    byte[] bytes = bpmnXMLConverter.convertToXML(bpmnModel);
+    customProcessDefinitionCacheEntry.setBpmnModel(bytes);
+    customProcessDefinitionCacheEntry.setDeploymentId(deploymentId);
+    customProcessDefinitionCacheEntry.setResourceName(resourceName);
+    return customProcessDefinitionCacheEntry;
+}
+</code></pre>
+<ul>
+<li>Redis存储的对象</li>
+</ul>
+<pre><code class="language-java">@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class CustomProcessDefinitionCacheEntry implements Serializable {
+    private static final long serialVersionUID = 6833801933658529071L;
+    protected  String deploymentId;
+    protected  String resourceName;
+    protected byte[] bpmnModel;
+}
+</code></pre>
+<ul>
+<li>添加到redis接口</li>
+</ul>
+<pre><code class="language-java">public interface FreeProcessCaChe {
+    CustomProcessDefinitionCacheEntry get(String key);
+    void set(String key,CustomProcessDefinitionCacheEntry process);
+
+    boolean contains(String key);
+
+    void add(String key, CustomProcessDefinitionCacheEntry process);
+
+    void remove(String key);
+
+    void clear();
+}
+</code></pre>
+<ul>
+<li>添加到redis接口实现</li>
+</ul>
+<pre><code class="language-java">@Service
+public class FreeProcessCaCheImpl implements FreeProcessCaChe {
+    private String hashkey = &quot;freeprocesscache&quot;;
+
+    @PostConstruct
+    public void init() {
+        boolean b = redisUtil.hasKey(hashkey);
+        if (!b) {
+            redisUtil.hset(hashkey, &quot;init&quot;, &quot;init&quot;);
+        }
+    }
+
+
+    @Autowired
+    private RedisUtil redisUtil;
+
+    @Override
+    public CustomProcessDefinitionCacheEntry get(String key) {
+        if (StringUtils.isBlank(key)) {
+            return null;
+        }
+        Object value = redisUtil.hget(hashkey, key);
+        if (value != null) {
+            JSONObject jb = (JSONObject) value;
+            CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = JSON.toJavaObject(jb, CustomProcessDefinitionCacheEntry.class);
+            return customProcessDefinitionCacheEntry;
+        }
+        return null;
+    }
+
+    @Override
+    public boolean contains(String key) {
+        return redisUtil.hHasKey(hashkey, key);
+    }
+
+    @Override
+    public void add(String key, CustomProcessDefinitionCacheEntry process) {
+        boolean hset = redisUtil.hset(hashkey, key, process);
+        if (!hset) {
+            throw new CheckErrorException(&quot;缓存自由流程信息失败&quot;);
+        }
+    }
+
+    @Override
+    public void set(String key, CustomProcessDefinitionCacheEntry process) {
+        boolean hset = redisUtil.hset(hashkey, key, process);
+        if (!hset) {
+            throw new CheckErrorException(&quot;更新自由流程信息失败&quot;);
+        }
+    }
+
+    @Override
+    public void remove(String key) {
+        redisUtil.hdel(hashkey, key);
+    }
+
+    @Override
+    public void clear() {
+        redisUtil.hmset(hashkey, Maps.newHashMap());
+    }
+}
+</code></pre>
+<h2 id="修改流程配置类添加自定义缓存获取">修改流程配置类添加自定义缓存获取</h2>
+<pre><code class="language-java">springProcessEngineConfiguration.setProcessDefinitionCache(new CustomDeploymentCache&lt;&gt;());
+</code></pre>
+<p>设置的自定义缓存获取类（主要是重写获取缓存的get方法，以下仅为参考）</p>
+<pre><code class="language-java">public class CustomDeploymentCache&lt;T&gt; extends DefaultDeploymentCache&lt;T&gt;  {
+    @Override
+    public T get(String id) {
+        T t = super.get(id);
+        if(t==null){
+            return  t;
+        }
+        String processInstanceId=null;
+        try {
+             processInstanceId = (String) FlowUtils.getRequest().getAttribute(&quot;processInstanceId&quot;);
+            if (StringUtils.isBlank(processInstanceId)) {
+                return t;
+            }
+        }catch (Exception e){
+            return t;
+        }
+        if(t instanceof ProcessDefinitionCacheEntry) {
+            JSONObject jsonObject = new JSONObject();
+            Process mainProcess = ((ProcessDefinitionCacheEntry) t).getBpmnModel().getMainProcess();
+            String processGlobelSettings = &quot;processGlobelSettings&quot;;
+            List&lt;ExtensionElement&gt; extensionElements = mainProcess.getExtensionElements().get(processGlobelSettings);
+            if (extensionElements != null &amp;&amp; (!extensionElements.isEmpty())) {
+                ExtensionElement extensionElement = extensionElements.get(0);
+                String elementText = extensionElement.getElementText();
+                jsonObject = JSON.parseObject(elementText, Feature.OrderedField);
+            }
+           boolean freeProcess=jsonObject.getBooleanValue(&quot;freeProcess&quot;);
+            if (!freeProcess) {
+                return super.get(id);
+            } else {
+                //从缓存中取值
+                FreeProcessCaChe cache = SpringUtil.getBean(FreeProcessCaChe.class);
+                CustomProcessDefinitionCacheEntry redisProcessDefinitionCacheEntry = cache.get(processInstanceId);
+                BpmnModel bpmnModel=null;
+                if(redisProcessDefinitionCacheEntry==null){
+                    return  t;
+                }else {
+                    try {
+                        bpmnModel = FlowUtils.parseBpmnModelFromCustomProcessDefinitionCacheEntry(redisProcessDefinitionCacheEntry);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                Process process = bpmnModel.getMainProcess();
+                RuntimeService  runtimeService = SpringUtil.getBean(RuntimeService.class);
+                RepositoryService repositoryService = SpringUtil.getBean(RepositoryService.class);
+                ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult();
+                String processDefinitionId = processInstance.getProcessDefinitionId();
+                ProcessDefinition dataProcessDefinition = null;
+                if(t!=null){
+                    ProcessDefinitionCacheEntry pdc=(ProcessDefinitionCacheEntry)t;
+                    dataProcessDefinition=pdc.getProcessDefinition();
+                }else{
+                    dataProcessDefinition=repositoryService.createProcessDefinitionQuery().processDefinitionId(processDefinitionId).singleResult();
+                }
+                ProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = new ProcessDefinitionCacheEntry(dataProcessDefinition,bpmnModel,process);
+
+                return (T) customProcessDefinitionCacheEntry;
+            }
+        }else{
+            return super.get(id);
+        }
+    }
+}
+</code></pre>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[flowable获取当前任务节点下一步会创建的用户任务]]></title>
         <id>https://oldcamel.run/post/flowable-nexttask/</id>
