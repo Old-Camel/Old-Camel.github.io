@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-25T07:28:32.254Z</updated>
+    <updated>2020-12-25T07:56:41.878Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -12,7 +12,141 @@
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
     <entry>
-        <title type="html"><![CDATA[grafana安装]]></title>
+        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（三）读取Istio指标]]></title>
+        <id>https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/</id>
+        <link href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/">
+        </link>
+        <updated>2020-12-25T07:41:53.000Z</updated>
+        <content type="html"><![CDATA[<p>istio中默认带了prometheus,里面包含istio代理的指标，现需要将istio中的指标配置在kube-prometheus中。</p>
+<h2 id="修改prometheus-k8s-角色权限">修改prometheus-k8s 角色权限</h2>
+<p>修改prometheus-clusterRole.yaml</p>
+<pre><code>apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-k8s
+rules:
+- apiGroups:
+  - &quot;&quot;
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  - nodes/proxy
+  verbs:
+  - get
+  - watch
+  - list
+- apiGroups:
+  - &quot;&quot;
+  resources:
+  - configmaps
+  verbs:
+  - get
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+</code></pre>
+<h2 id="配置数据平面的服务监控">配置数据平面的服务监控</h2>
+<pre><code>apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-oper-istio-controlplane
+spec:
+  jobLabel: istio
+  selector:
+    matchExpressions:
+      - {key: istio, operator: In, values: [mixer,pilot,galley,citadel,sidecar-injector]}
+  namespaceSelector:
+    any: true
+  endpoints:
+  - port: http-monitoring
+    interval: 15s
+  - port: http-policy-monitoring
+    interval: 15s
+
+</code></pre>
+<h2 id="配置数据层的服务监控">配置数据层的服务监控</h2>
+<pre><code>apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-oper-istio-dataplane
+  labels:
+    monitoring: istio-dataplane
+spec:
+  selector:
+    matchExpressions:
+      - {key: istio-prometheus-ignore, operator: DoesNotExist}
+  namespaceSelector:
+    any: true
+  jobLabel: envoy-stats
+  endpoints:
+  - path: /stats/prometheus
+    targetPort: http-envoy-prom
+    interval: 15s
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_container_port_name]
+      action: keep
+      regex: '.*-envoy-prom'
+    - action: labelmap
+      regex: &quot;__meta_kubernetes_pod_label_(.+)&quot;
+    - sourceLabels: [__meta_kubernetes_namespace]
+      action: replace
+      targetLabel: namespace
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      action: replace
+      targetLabel: pod_name
+
+</code></pre>
+<h2 id="查看是否生效">查看是否生效</h2>
+<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1608882536864.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="2"><img src="https://oldcamel.run/post-images/1608882571184.png" alt="" loading="lazy"></figure>
+<h2 id="victoriametrics-中不同集群中的指标获取">VictoriaMetrics 中不同集群中的指标获取</h2>
+<figure data-type="image" tabindex="3"><img src="https://oldcamel.run/post-images/1608882968056.png" alt="" loading="lazy"></figure>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（三）kube-prometheus安装]]></title>
+        <id>https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-kube-prometheus-an-zhuang/</id>
+        <link href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-kube-prometheus-an-zhuang/">
+        </link>
+        <updated>2020-12-25T07:32:20.000Z</updated>
+        <content type="html"><![CDATA[<p>kube-prometheus是Prometheus Operator 针对kubernetes的监控组件。<br>
+github地址<br>
+<a href="https://github.com/prometheus-operator/kube-prometheus">https://github.com/prometheus-operator/kube-prometheus</a></p>
+<h2 id="配置远程写入">配置远程写入</h2>
+<h3 id="basic用户名密码配置-secret">basic用户名密码配置 secret</h3>
+<pre><code>apiVersion: v1
+kind: Secret
+metadata:
+  name: vmuser
+  namespace: monitoring
+type: kubernetes.io/basic-auth
+stringData:
+  username: username
+  password: password
+</code></pre>
+<h3 id="添加远程写入-和外部标签">添加远程写入 和外部标签</h3>
+<p>修改prometheus-prometheus.yaml文件，添加</p>
+<pre><code>prometheusExternalLabelName: &quot;&quot;
+  replicaExternalLabelName: &quot;&quot;
+  externalLabels:
+    tenant: &quot;租户名称&quot;
+  remoteWrite:
+    - url: http://VictoriaMetrics连接地址/api/v1/write
+      basicAuth:
+       username:
+          key: username
+          name: vmuser
+       password:
+          key: password
+          name: vmuser
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（二）Grafana安装]]></title>
         <id>https://oldcamel.run/post/grafana-an-zhuang/</id>
         <link href="https://oldcamel.run/post/grafana-an-zhuang/">
         </link>
@@ -86,7 +220,7 @@ password =123456
 ]]></content>
     </entry>
     <entry>
-        <title type="html"><![CDATA[VictoriaMetrics 安装]]></title>
+        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics]]></title>
         <id>https://oldcamel.run/post/victoriametrics-an-zhuang/</id>
         <link href="https://oldcamel.run/post/victoriametrics-an-zhuang/">
         </link>
