@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-11T08:40:18.420Z</updated>
+    <updated>2020-12-25T06:46:24.946Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -11,6 +11,35 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[VictoriaMetrics 安装]]></title>
+        <id>https://oldcamel.run/post/victoriametrics-an-zhuang/</id>
+        <link href="https://oldcamel.run/post/victoriametrics-an-zhuang/">
+        </link>
+        <updated>2020-12-25T06:33:44.000Z</updated>
+        <content type="html"><![CDATA[<h2 id="victoriametrics-用来收集k8s集群中的prometheus指标信息">victoriametrics 用来收集k8s集群中的prometheus指标信息 。</h2>
+<p><a href="https://github.com/VictoriaMetrics/VictoriaMetrics">github地址</a><br>
+<a href="https://victoriametrics.github.io/#retention">官方文档地址</a><br>
+<a href="https://github.com/VictoriaMetrics/VictoriaMetrics/releases">下载二级制安装包</a></p>
+<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1608878459634.png" alt="" loading="lazy"></figure>
+<h2 id="启动主进程">启动主进程</h2>
+<p>运行端口8428</p>
+<pre><code class="language-shell">./victoria-metrics-prod -retentionPeriod=3 -selfScrapeInterval=10s &amp;
+</code></pre>
+<h2 id="启动认证代理">启动认证代理</h2>
+<p>运行端口8427</p>
+<pre><code class="language-shell">./vmauth-prod -auth.config=/opt/vm/config/config.yml &amp;
+</code></pre>
+<h2 id="basic认证配置文件">basic认证配置文件</h2>
+<pre><code>users:
+- username: &quot;username&quot;
+  password: &quot;password&quot;
+  url_prefix: &quot;http://localhost:8428&quot;
+</code></pre>
+<h2 id="运行端口">运行端口</h2>
+<figure data-type="image" tabindex="2"><img src="https://oldcamel.run/post-images/1608878759387.png" alt="" loading="lazy"></figure>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[flowable修改流程缓存实现自由流程]]></title>
         <id>https://oldcamel.run/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/</id>
