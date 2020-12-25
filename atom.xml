@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-25T06:46:24.946Z</updated>
+    <updated>2020-12-25T07:28:32.254Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -11,6 +11,80 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[grafana安装]]></title>
+        <id>https://oldcamel.run/post/grafana-an-zhuang/</id>
+        <link href="https://oldcamel.run/post/grafana-an-zhuang/">
+        </link>
+        <updated>2020-12-25T06:50:09.000Z</updated>
+        <content type="html"><![CDATA[<p>安装grafana 从victoriametrics中读取汇总的指标</p>
+<h2 id="安装mysql">安装mysql</h2>
+<h3 id="下载离线包">下载离线包</h3>
+<p><a href="https://dev.mysql.com/downloads/mysql/5.7.html#downloads">下载地址</a><br>
+<img src="https://oldcamel.run/post-images/1608879483467.png" alt="" loading="lazy"></p>
+<h3 id="解压安装">解压安装</h3>
+<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1608879544128.png" alt="" loading="lazy"></figure>
+<pre><code>rpm -Uvh *.rpm --nodeps --force
+</code></pre>
+<h3 id="修改配置文件">修改配置文件</h3>
+<p>修改 /etc/my.cnf 添加</p>
+<pre><code>lower_case_table_names=1
+default-storage-engine=INNODB
+</code></pre>
+<h3 id="生成用户不带密码">生成用户不带密码</h3>
+<pre><code>mysqld --initialize-insecure
+</code></pre>
+<p>如果要重新初始化，必须先清空data文件夹</p>
+<h3 id="启动mysql">启动mysql</h3>
+<pre><code>systemctl start mysqld
+</code></pre>
+<h3 id="进入mysql">进入mysql</h3>
+<pre><code>mysql -u root
+</code></pre>
+<h3 id="修改密码开启远程访问">修改密码+开启远程访问</h3>
+<pre><code>set password for root@localhost = password('123456');
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+</code></pre>
+<h3 id="创建grafana数据库">创建grafana数据库</h3>
+<pre><code>CREATE DATABASE  `grafana` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+</code></pre>
+<h2 id="安装grafana">安装grafana</h2>
+<h3 id="下载安装">下载安装</h3>
+<p><a href="https://grafana.com/grafana/download">参考文档</a></p>
+<pre><code>wget https://dl.grafana.com/oss/release/grafana-7.3.6-1.x86_64.rpm
+sudo yum install grafana-7.3.6-1.x86_64.rpm
+</code></pre>
+<h3 id="修改配置文件-2">修改配置文件</h3>
+<pre><code class="language-shell">vim /etc/grafana/grafana.ini
+</code></pre>
+<h4 id="domain修改">domain修改</h4>
+<pre><code>domain = 修改成主机IP
+</code></pre>
+<h4 id="默认用户名密码修改">默认用户名密码修改</h4>
+<pre><code>admin_user = admin
+admin_password = 123456
+</code></pre>
+<h4 id="数据库修改">数据库修改</h4>
+<pre><code>type = mysql
+host = 127.0.0.1:3306
+name = grafana
+user = root
+password =123456
+
+</code></pre>
+<h3 id="启动grafana服务">启动grafana服务</h3>
+<pre><code>service grafana-server start
+</code></pre>
+<h3 id="配置-victoriametrics连接">配置 victoriametrics连接</h3>
+<p>访问 ip:3000<br>
+添加prometheus数据源 设置为 victoriametrics主机ip  端口 8428<br>
+<img src="https://oldcamel.run/post-images/1608881141442.png" alt="" loading="lazy"></p>
+<p>配置victoriametrics官方的监控图表<br>
+<a href="https://grafana.com/grafana/dashboards/10229">grafana lab地址</a><br>
+<img src="https://oldcamel.run/post-images/1608881288591.png" alt="" loading="lazy"></p>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[VictoriaMetrics 安装]]></title>
         <id>https://oldcamel.run/post/victoriametrics-an-zhuang/</id>
