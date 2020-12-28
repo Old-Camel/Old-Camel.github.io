@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-25T07:56:41.878Z</updated>
+    <updated>2020-12-28T05:59:49.097Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -12,7 +12,7 @@
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2020, Old Camel</rights>
     <entry>
-        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（三）读取Istio指标]]></title>
+        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标]]></title>
         <id>https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/</id>
         <link href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/">
         </link>
@@ -85,18 +85,7 @@ spec:
   - path: /stats/prometheus
     targetPort: http-envoy-prom
     interval: 15s
-    relabelings:
-    - sourceLabels: [__meta_kubernetes_pod_container_port_name]
-      action: keep
-      regex: '.*-envoy-prom'
-    - action: labelmap
-      regex: &quot;__meta_kubernetes_pod_label_(.+)&quot;
-    - sourceLabels: [__meta_kubernetes_namespace]
-      action: replace
-      targetLabel: namespace
-    - sourceLabels: [__meta_kubernetes_pod_name]
-      action: replace
-      targetLabel: pod_name
+
 
 </code></pre>
 <h2 id="查看是否生效">查看是否生效</h2>
