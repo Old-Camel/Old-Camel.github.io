@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2020-12-28T05:59:49.097Z</updated>
+    <updated>2021-01-08T02:28:05.467Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -10,7 +10,106 @@
 &lt;div&gt;&lt;iframe frameborder=&quot;no&quot; border=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot; width=330 height=86 src=&quot;//music.163.com/outchain/player?type=2&amp;id=18611643&amp;auto=1&amp;height=66&quot;&gt;&lt;/iframe&gt;&lt;/div&gt;</subtitle>
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
-    <rights>All rights reserved 2020, Old Camel</rights>
+    <rights>All rights reserved 2021, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[Kafka开启SASL用户名密码认证]]></title>
+        <id>https://oldcamel.run/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/</id>
+        <link href="https://oldcamel.run/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/">
+        </link>
+        <updated>2021-01-08T01:51:25.000Z</updated>
+        <content type="html"><![CDATA[<h2 id="创建kafka_server_jaasconf文件">创建kafka_server_jaas.conf文件</h2>
+<p>config目录下创建kafka_server_jaas.conf文件</p>
+<pre><code>KafkaServer {
+  org.apache.kafka.common.security.plain.PlainLoginModule required
+  username=&quot;admin&quot;
+  password=&quot;123&quot;
+  user_admin=&quot;123&quot;
+  user_yunzai=&quot;123&quot;;
+};
+</code></pre>
+<h2 id="创建kafka_client_jaasconf文件">创建kafka_client_jaas.conf文件</h2>
+<p>config目录下创建kafka_client_jaas.conf文件</p>
+<pre><code>KafkaClient {
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username=&quot;admin&quot;
+        password=&quot;123&quot;;
+};
+</code></pre>
+<h2 id="修改serverproperties">修改server.properties</h2>
+<pre><code>listeners=SASL_PLAINTEXT://IP:9092
+advertised.listeners=SASL_PLAINTEXT://IP:9092
+security.inter.broker.protocol=SASL_PLAINTEXT
+sasl.enabled.mechanisms=PLAIN
+sasl.mechanism.inter.broker.protocol=PLAIN
+authorizer.class.name = kafka.security.auth.SimpleAclAuthorizer
+super.users=User:admin;
+</code></pre>
+<h2 id="修改kafaka启动脚本">修改kafaka启动脚本</h2>
+<p>修改bin目录下kafka_start.sh<br>
+在倒数第二行添加kafka_server_jaas.conf的全路径</p>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/kafka_server_jaas.conf&quot;
+</code></pre>
+<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1610071605941.png" alt="" loading="lazy"></figure>
+<h2 id="可选为特定用户添加特定topic的acl授权">（可选）为特定用户添加特定topic的acl授权</h2>
+<p>如下表示为用户yunzai添加topic nginx-log的读写权限。</p>
+<pre><code>./bin/kafka-acls.sh --authorizer-properties zookeeper.connect=localhost:2181 -add --allow-principal User:yunzai  --operation Read --operation Write --topic testyunzai
+</code></pre>
+<p>验证授权</p>
+<pre><code>./bin/kafka-acls.sh --authorizer-properties zookeeper.connect=localhost:2181 --list --topic testyunzai
+</code></pre>
+<h3 id="生产者消费者验证">生产者消费者验证</h3>
+<h4 id="生产者">生产者</h4>
+<p>1.以用户yunzai为例，创建JAAS认证文件yunzai_jaas.conf放在config目录下，内容如下:</p>
+<pre><code>KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username=&quot;yunzai&quot;
+password=&quot;123&quot;;
+};
+</code></pre>
+<p>2.拷贝bin/kafka-console-producer.sh为bin/yunzai-kafka-console-producer.sh，并将JAAS文件作为一个JVM参数传给console producer</p>
+<p>倒数第二行添加</p>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/yunzai_jaas.conf&quot;
+</code></pre>
+<p>3.创建文件producer.config指定如下属性：</p>
+<pre><code>security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+</code></pre>
+<p>4.启动producer</p>
+<pre><code>./bin/yunzai-kafka-console-producer.sh --broker-list IP:9092 --topic testyunzai --producer.config producer.config
+</code></pre>
+<h4 id="消费者">消费者</h4>
+<p>1.以用户yunzai为例，创建JAAS认证文件yunzai_jaas.conf放在config目录下，如果用户跟生产者是同一个，可以复用上面生产者的JAAS文件，内容如下:</p>
+<pre><code>KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username=&quot;yunzai&quot;
+password=&quot;123&quot;;
+};
+</code></pre>
+<p>2.拷贝bin/kafka-console-consumer.sh为bin/yunzai-kafka-console-consumer.sh，并将JAAS文件作为一个JVM参数传给console consumer<br>
+倒数第二行添加</p>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/yunzai_jaas.conf&quot;
+</code></pre>
+<p>3.创建文件consumer.config指定如下属性：</p>
+<pre><code>security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+group.id=test
+</code></pre>
+<p>4.启动consumer</p>
+<pre><code>./bin/yunzai-kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic testyunzai --from-beginning --consumer.config consumer.config
+</code></pre>
+<h3 id="java-beam客户端认证">java beam客户端认证</h3>
+<p>beam设置</p>
+<pre><code class="language-java">   final Map&lt;String, Object&gt; immutableMap = new ImmutableMap.Builder&lt;String, Object&gt;()
+                .put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, &quot;earliest&quot;)
+                .put(ConsumerConfig.GROUP_ID_CONFIG, options.getGroupid())
+                .put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true)
+                .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, &quot;SASL_PLAINTEXT&quot;)
+                .put(SaslConfigs.SASL_MECHANISM, &quot;PLAIN&quot;)
+                .put(SaslConfigs.SASL_JAAS_CONFIG, &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;&quot; + options.getKafkaUsername() + &quot;\&quot; password=\&quot;&quot; + options.getKafkaPassword() + &quot;\&quot;;&quot;)
+                .build();
+</code></pre>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标]]></title>
         <id>https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/</id>

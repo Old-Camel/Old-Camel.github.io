@@ -10,14 +10,14 @@
 <meta name="keywords" content="">
 <meta name="description" content="欢迎访问[Old Camel]的个人博客">
 <meta name="author" content="kveln">
-<title>关于 | Old Camel</title>
+<title>Kafka开启SASL用户名密码认证 | Old Camel</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
 <link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
 <link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
 <link
   href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
   rel='stylesheet' type='text/css'>
-<link rel="alternate" type="application/rss+xml" title="关于 | Old Camel » Feed"
+<link rel="alternate" type="application/rss+xml" title="Kafka开启SASL用户名密码认证 | Old Camel » Feed"
   href="https://oldcamel.run/atom.xml">
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
@@ -38,8 +38,8 @@
     gtag('js', new Date());
     gtag('config', 'G-3TQNJ5FTMN');</script>
 
-  <meta property="og:description" content="关于" />
-  <meta property="og:url" content="https://oldcamel.run/post/about/" />
+  <meta property="og:description" content="Kafka开启SASL用户名密码认证" />
+  <meta property="og:url" content="https://oldcamel.run/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/" />
   <meta property="og:locale" content="zh-CN" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Old Camel" />
@@ -160,11 +160,13 @@
             <div class="post-heading">
               <span class="tags">
                 
+                <a href="https://oldcamel.run/tag/AfOZDj8Cpm/" class="tag">kafka</a>
+                
               </span>
-              <h1>关于</h1>
+              <h1>Kafka开启SASL用户名密码认证</h1>
               <span class="meta">
                 Posted on
-                2019-01-25，1 min read
+                2021-01-08，4 min read
               </span>
             </div>
           
@@ -179,16 +181,134 @@
       <div class="row">
         <div class="col-lg-8 col-md-10 mx-auto post-content-container">
           
-          <blockquote>
-<p>欢迎来到我的小站呀，很高兴遇见你！🤝</p>
-</blockquote>
+          <h2 id="创建kafka_server_jaasconf文件">创建kafka_server_jaas.conf文件</h2>
+<p>config目录下创建kafka_server_jaas.conf文件</p>
+<pre><code>KafkaServer {
+  org.apache.kafka.common.security.plain.PlainLoginModule required
+  username=&quot;admin&quot;
+  password=&quot;123&quot;
+  user_admin=&quot;123&quot;
+  user_yunzai=&quot;123&quot;;
+};
+</code></pre>
+<h2 id="创建kafka_client_jaasconf文件">创建kafka_client_jaas.conf文件</h2>
+<p>config目录下创建kafka_client_jaas.conf文件</p>
+<pre><code>KafkaClient {
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username=&quot;admin&quot;
+        password=&quot;123&quot;;
+};
+</code></pre>
+<h2 id="修改serverproperties">修改server.properties</h2>
+<pre><code>listeners=SASL_PLAINTEXT://IP:9092
+advertised.listeners=SASL_PLAINTEXT://IP:9092
+security.inter.broker.protocol=SASL_PLAINTEXT
+sasl.enabled.mechanisms=PLAIN
+sasl.mechanism.inter.broker.protocol=PLAIN
+authorizer.class.name = kafka.security.auth.SimpleAclAuthorizer
+super.users=User:admin;
+</code></pre>
+<h2 id="修改kafaka启动脚本">修改kafaka启动脚本</h2>
+<p>修改bin目录下kafka_start.sh<br>
+在倒数第二行添加kafka_server_jaas.conf的全路径</p>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/kafka_server_jaas.conf&quot;
+</code></pre>
+<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1610071605941.png" alt="" loading="lazy"></figure>
+<h2 id="可选为特定用户添加特定topic的acl授权">（可选）为特定用户添加特定topic的acl授权</h2>
+<p>如下表示为用户yunzai添加topic nginx-log的读写权限。</p>
+<pre><code>./bin/kafka-acls.sh --authorizer-properties zookeeper.connect=localhost:2181 -add --allow-principal User:yunzai  --operation Read --operation Write --topic testyunzai
+</code></pre>
+<p>验证授权</p>
+<pre><code>./bin/kafka-acls.sh --authorizer-properties zookeeper.connect=localhost:2181 --list --topic testyunzai
+</code></pre>
+<h3 id="生产者消费者验证">生产者消费者验证</h3>
+<h4 id="生产者">生产者</h4>
+<p>1.以用户yunzai为例，创建JAAS认证文件yunzai_jaas.conf放在config目录下，内容如下:</p>
+<pre><code>KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username=&quot;yunzai&quot;
+password=&quot;123&quot;;
+};
+</code></pre>
+<p>2.拷贝bin/kafka-console-producer.sh为bin/yunzai-kafka-console-producer.sh，并将JAAS文件作为一个JVM参数传给console producer</p>
+<p>倒数第二行添加</p>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/yunzai_jaas.conf&quot;
+</code></pre>
+<p>3.创建文件producer.config指定如下属性：</p>
+<pre><code>security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+</code></pre>
+<p>4.启动producer</p>
+<pre><code>./bin/yunzai-kafka-console-producer.sh --broker-list IP:9092 --topic testyunzai --producer.config producer.config
+</code></pre>
+<h4 id="消费者">消费者</h4>
+<p>1.以用户yunzai为例，创建JAAS认证文件yunzai_jaas.conf放在config目录下，如果用户跟生产者是同一个，可以复用上面生产者的JAAS文件，内容如下:</p>
+<pre><code>KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username=&quot;yunzai&quot;
+password=&quot;123&quot;;
+};
+</code></pre>
+<p>2.拷贝bin/kafka-console-consumer.sh为bin/yunzai-kafka-console-consumer.sh，并将JAAS文件作为一个JVM参数传给console consumer<br>
+倒数第二行添加</p>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/yunzai_jaas.conf&quot;
+</code></pre>
+<p>3.创建文件consumer.config指定如下属性：</p>
+<pre><code>security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+group.id=test
+</code></pre>
+<p>4.启动consumer</p>
+<pre><code>./bin/yunzai-kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic testyunzai --from-beginning --consumer.config consumer.config
+</code></pre>
+<h3 id="java-beam客户端认证">java beam客户端认证</h3>
+<p>beam设置</p>
+<pre><code class="language-java">   final Map&lt;String, Object&gt; immutableMap = new ImmutableMap.Builder&lt;String, Object&gt;()
+                .put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, &quot;earliest&quot;)
+                .put(ConsumerConfig.GROUP_ID_CONFIG, options.getGroupid())
+                .put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true)
+                .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, &quot;SASL_PLAINTEXT&quot;)
+                .put(SaslConfigs.SASL_MECHANISM, &quot;PLAIN&quot;)
+                .put(SaslConfigs.SASL_JAAS_CONFIG, &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;&quot; + options.getKafkaUsername() + &quot;\&quot; password=\&quot;&quot; + options.getKafkaPassword() + &quot;\&quot;;&quot;)
+                .build();
+</code></pre>
 
-          <div class="toc-container"></div>
+          <div class="toc-container"><ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E5%88%9B%E5%BB%BAkafka_server_jaasconf%E6%96%87%E4%BB%B6">创建kafka_server_jaas.conf文件</a></li>
+<li><a href="#%E5%88%9B%E5%BB%BAkafka_client_jaasconf%E6%96%87%E4%BB%B6">创建kafka_client_jaas.conf文件</a></li>
+<li><a href="#%E4%BF%AE%E6%94%B9serverproperties">修改server.properties</a></li>
+<li><a href="#%E4%BF%AE%E6%94%B9kafaka%E5%90%AF%E5%8A%A8%E8%84%9A%E6%9C%AC">修改kafaka启动脚本</a></li>
+<li><a href="#%E5%8F%AF%E9%80%89%E4%B8%BA%E7%89%B9%E5%AE%9A%E7%94%A8%E6%88%B7%E6%B7%BB%E5%8A%A0%E7%89%B9%E5%AE%9Atopic%E7%9A%84acl%E6%8E%88%E6%9D%83">（可选）为特定用户添加特定topic的acl授权</a>
+<ul>
+<li><a href="#%E7%94%9F%E4%BA%A7%E8%80%85%E6%B6%88%E8%B4%B9%E8%80%85%E9%AA%8C%E8%AF%81">生产者消费者验证</a>
+<ul>
+<li><a href="#%E7%94%9F%E4%BA%A7%E8%80%85">生产者</a></li>
+<li><a href="#%E6%B6%88%E8%B4%B9%E8%80%85">消费者</a></li>
+</ul>
+</li>
+<li><a href="#java-beam%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%AE%A4%E8%AF%81">java beam客户端认证</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+          
+          <hr />
+          <p class="next-post">下一篇：
+            <a href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/">
+              <span class="post-title">
+                VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标&rarr;
+              </span>
+            </a>
+          </p>
           
           <div class="comment" style="text-align: center;">
             
-            <span id="/post/about/" class="leancloud_visitors"
-              data-flag-title="关于">
+            <span id="/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/" class="leancloud_visitors"
+              data-flag-title="Kafka开启SASL用户名密码认证">
               <em class="post-meta-item-text">阅读量 </em>
               <i class="leancloud-visitors-count">loading...</i>
             </span>
