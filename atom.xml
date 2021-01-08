@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-01-08T06:27:37.212Z</updated>
+    <updated>2021-01-08T07:52:40.023Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -320,6 +320,33 @@ curl --location --request POST 'http://localhost:8083/connectors/' \
         &quot;parse.dml.data&quot;: true,
         &quot;reset.offset&quot;: false,
         &quot;multitenant&quot;: false
+    }
+}
+</code></pre>
+<h3 id="mysql示例">mysql示例</h3>
+<pre><code>curl --location --request POST 'http://localhost:8083/connectors/' \
+--header 'Content-Type: application/json' \
+--data-raw '
+{
+  &quot;name&quot;: &quot;140mysql-connector&quot;, 
+  &quot;config&quot;: {
+    &quot;connector.class&quot;: &quot;io.debezium.connector.mysql.MySqlConnector&quot;, 
+    &quot;database.hostname&quot;: &quot;localhost&quot;, 
+    &quot;database.port&quot;: &quot;3306&quot;, 
+    &quot;database.user&quot;: &quot;root&quot;, 
+    &quot;database.password&quot;: &quot;111111&quot;, 
+    &quot;database.server.id&quot;: &quot;184054&quot;, 
+    &quot;database.server.name&quot;: &quot;fullfillment140ms&quot;, 
+    &quot;database.whitelist&quot;:&quot;test&quot;,
+    &quot;database.history.kafka.bootstrap.servers&quot;: &quot;localhost:9092&quot;, 
+    &quot;database.history.kafka.topic&quot;: &quot;dbhistory.fullfillment140ms&quot;, 
+    &quot;include.schema.changes&quot;: &quot;false&quot;,
+        &quot;database.history.producer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+        &quot;database.history.producer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+        &quot;database.history.producer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;123\&quot;;&quot;,
+        &quot;database.history.consumer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+        &quot;database.history.consumer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+        &quot;database.history.consumer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;123\&quot;;&quot;
     }
 }
 </code></pre>

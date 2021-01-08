@@ -86,7 +86,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1610087254476"
+            <form id="gridea-search-form" style="position: relative" data-update="1610092352576"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -136,7 +136,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1610087254476"
+            <form id="gridea-search-form" style="position: relative" data-update="1610092352576"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -164,7 +164,7 @@
               <h1>Kafka实现sqlserver的CDC数据实时变更</h1>
               <span class="meta">
                 Posted on
-                2021-01-08，10 min read
+                2021-01-08，11 min read
               </span>
             </div>
           
@@ -485,6 +485,33 @@ curl --location --request POST 'http://localhost:8083/connectors/' \
     }
 }
 </code></pre>
+<h3 id="mysql示例">mysql示例</h3>
+<pre><code>curl --location --request POST 'http://localhost:8083/connectors/' \
+--header 'Content-Type: application/json' \
+--data-raw '
+{
+  &quot;name&quot;: &quot;140mysql-connector&quot;, 
+  &quot;config&quot;: {
+    &quot;connector.class&quot;: &quot;io.debezium.connector.mysql.MySqlConnector&quot;, 
+    &quot;database.hostname&quot;: &quot;localhost&quot;, 
+    &quot;database.port&quot;: &quot;3306&quot;, 
+    &quot;database.user&quot;: &quot;root&quot;, 
+    &quot;database.password&quot;: &quot;111111&quot;, 
+    &quot;database.server.id&quot;: &quot;184054&quot;, 
+    &quot;database.server.name&quot;: &quot;fullfillment140ms&quot;, 
+    &quot;database.whitelist&quot;:&quot;test&quot;,
+    &quot;database.history.kafka.bootstrap.servers&quot;: &quot;localhost:9092&quot;, 
+    &quot;database.history.kafka.topic&quot;: &quot;dbhistory.fullfillment140ms&quot;, 
+    &quot;include.schema.changes&quot;: &quot;false&quot;,
+        &quot;database.history.producer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+        &quot;database.history.producer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+        &quot;database.history.producer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;123\&quot;;&quot;,
+        &quot;database.history.consumer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+        &quot;database.history.consumer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+        &quot;database.history.consumer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;123\&quot;;&quot;
+    }
+}
+</code></pre>
 <h3 id="查看topic-list">查看topic list</h3>
 <pre><code>bin/kafka-topics.sh --zookeeper localhost --list
 </code></pre>
@@ -521,6 +548,7 @@ curl --location --request POST 'http://localhost:8083/connectors/' \
 <li><a href="#oracle%E7%A4%BA%E4%BE%8B">oracle示例</a></li>
 </ul>
 </li>
+<li><a href="#mysql%E7%A4%BA%E4%BE%8B">mysql示例</a></li>
 <li><a href="#%E6%9F%A5%E7%9C%8Btopic-list">查看topic list</a></li>
 </ul>
 </li>
