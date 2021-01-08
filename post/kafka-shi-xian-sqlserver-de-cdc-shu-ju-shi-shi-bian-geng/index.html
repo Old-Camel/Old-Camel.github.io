@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta content="yes" name="apple-mobile-web-app-capable" />
+<meta content="black" name="apple-mobile-web-app-status-bar-style" />
+<meta name="referrer" content="never">
+<meta name="keywords" content="">
+<meta name="description" content="欢迎访问[Old Camel]的个人博客">
+<meta name="author" content="kveln">
+<title>Kafka实现sqlserver的CDC数据实时变更 | Old Camel</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
+<link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
+<link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+<link
+  href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
+  rel='stylesheet' type='text/css'>
+<link rel="alternate" type="application/rss+xml" title="Kafka实现sqlserver的CDC数据实时变更 | Old Camel » Feed"
+  href="https://oldcamel.run/atom.xml">
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
+<link href="https://oldcamel.run/styles/main.css" rel="stylesheet">
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/css/live2d.css">
+
+<script>hljs.initHighlightingOnLoad();</script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3TQNJ5FTMN"></script>
+<script>window.dataLayer = window.dataLayer || [];
+    function gtag() {
+      dataLayer.push(arguments)
+    }
+    gtag('js', new Date());
+    gtag('config', 'G-3TQNJ5FTMN');</script>
+
+  <meta property="og:description" content="Kafka实现sqlserver的CDC数据实时变更" />
+  <meta property="og:url" content="https://oldcamel.run/post/kafka-shi-xian-sqlserver-de-cdc-shu-ju-shi-shi-bian-geng/" />
+  <meta property="og:locale" content="zh-CN" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Old Camel" />
+  <!-- <script src="../assets/styles/scripts/tocScript.js"></script> -->
+</head>
+
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="https://oldcamel.run">Old Camel</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
+      data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
+      aria-label="Toggle navigation">
+      Menu
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/">首页</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/archives">归档</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/tags">标签</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/post/about">关于</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          <div class="gridea-search-container">
+            <form id="gridea-search-form" style="position: relative" data-update="1610075894102"
+              action="/search/index.html">
+              <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+              <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+  <!-- Page Header -->
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+  <div class="container">
+    <a class="navbar-brand" href="https://oldcamel.run">Old Camel</a>
+    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
+      data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
+      aria-label="Toggle navigation">
+      Menu
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarResponsive">
+      <ul class="navbar-nav ml-auto">
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/">首页</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/archives">归档</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/tags">标签</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          
+          <a class="nav-link" href="/post/about">关于</a>
+          
+        </li>
+        
+        <li class="nav-item">
+          <div class="gridea-search-container">
+            <form id="gridea-search-form" style="position: relative" data-update="1610075894102"
+              action="/search/index.html">
+              <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
+              <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
+            </form>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<header class="masthead" style="background-image: url('https://oldcamel.run/media/images/home-bg.jpg')">
+  <div class="overlay"></div>
+  <div class="container">
+
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        
+          <!-- 没Title为其他页面Header -->
+          
+            <!-- 没Title并且有headerType为Post：文章Header -->
+            <div class="post-heading">
+              <span class="tags">
+                
+              </span>
+              <h1>Kafka实现sqlserver的CDC数据实时变更</h1>
+              <span class="meta">
+                Posted on
+                2021-01-08，10 min read
+              </span>
+            </div>
+          
+        
+      </div>
+    </div>
+  </div>
+</header>
+  <!-- Post Content -->
+  <article id="post-content-article">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto post-content-container">
+          
+          <h2 id="安装sqlserver">安装sqlserver</h2>
+<pre><code>#!/bin/bash -e
+# Password for the SA user (required)
+# 设置密码
+MSSQL_SA_PASSWORD='test@12345678'
+
+# Product ID of the version of SQL server you're installing
+# Must be evaluation, developer, express, web, standard, enterprise, or your 25 digit product key
+# Defaults to developer
+# 选择版本，有多种版本可供原则，具体版本标识符可自行百度
+MSSQL_PID='evaluation'
+
+# Install SQL Server Agent (recommended)
+SQL_ENABLE_AGENT='y'
+
+# Install SQL Server Full Text Search (optional)
+# SQL_INSTALL_FULLTEXT='y'
+
+# Create an additional user with sysadmin privileges (optional)
+# 新建一个额外添加的用户，（可选）
+# SQL_INSTALL_USER='&lt;Username&gt;'
+# SQL_INSTALL_USER_PASSWORD='&lt;YourStrong!Passw0rd&gt;'
+
+if [ -z $MSSQL_SA_PASSWORD ]
+then
+  echo Environment variable MSSQL_SA_PASSWORD must be set for unattended install
+  exit 1
+fi
+
+# --------------------------- 远程拉包 并安装的过程
+echo Adding Microsoft repositories...
+sudo curl -o /etc/yum.repos.d/mssql-server.repo https://packages.microsoft.com/config/rhel/7/mssql-server-2017.repo
+sudo curl -o /etc/yum.repos.d/msprod.repo https://packages.microsoft.com/config/rhel/7/prod.repo
+
+echo Installing SQL Server...
+sudo yum install -y mssql-server
+
+# --------------------------- 下面给出 本地离线rpm包安装部分脚本
+echo ：Local Installing SQL Server...
+sudo yum localinstall -y ./sqlserver2017.rpm
+
+
+
+# 执行sqlserver的配置
+echo Running mssql-conf setup...
+sudo MSSQL_SA_PASSWORD=$MSSQL_SA_PASSWORD \
+     MSSQL_PID=$MSSQL_PID \
+     /opt/mssql/bin/mssql-conf -n setup accept-eula
+
+echo Installing mssql-tools and unixODBC developer...
+sudo ACCEPT_EULA=Y yum install -y mssql-tools unixODBC-devel
+
+# Add SQL Server tools to the path by default:
+echo Adding SQL Server tools to your path...
+echo PATH=&quot;$PATH:/opt/mssql-tools/bin&quot; &gt;&gt; ~/.bash_profile
+echo 'export PATH=&quot;$PATH:/opt/mssql-tools/bin&quot;' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+
+# Optional Enable SQL Server Agent :
+if [ ! -z $SQL_ENABLE_AGENT ]
+then
+  echo Enable SQL Server Agent...
+  sudo /opt/mssql/bin/mssql-conf set sqlagent.enabled true
+  sudo systemctl restart mssql-server
+fi
+
+# Optional SQL Server Full Text Search installation:
+if [ ! -z $SQL_INSTALL_FULLTEXT ]
+then
+    echo Installing SQL Server Full-Text Search...
+    sudo yum install -y mssql-server-fts
+fi
+
+# Configure firewall to allow TCP port 1433:
+# 配置防火墙放行1433端口，懒省事直接关掉防火墙亦可
+echo Configuring firewall to allow traffic on port 1433...
+sudo firewall-cmd --zone=public --add-port=1433/tcp --permanent
+sudo firewall-cmd --reload
+
+# Example of setting post-installation configuration options
+# Set trace flags 1204 and 1222 for deadlock tracing:
+#echo Setting trace flags...
+#sudo /opt/mssql/bin/mssql-conf traceflag 1204 1222 on
+
+# Restart SQL Server after making configuration changes:
+# 重启
+echo Restarting SQL Server...
+sudo systemctl restart mssql-server
+
+# Connect to server and get the version:
+# 官方给出的测试链接脚本
+counter=1
+errstatus=1
+while [ $counter -le 5 ] &amp;&amp; [ $errstatus = 1 ]
+do
+  echo Waiting for SQL Server to start...
+  sleep 5s
+  /opt/mssql-tools/bin/sqlcmd \
+    -S localhost \
+    -U SA \
+    -P $MSSQL_SA_PASSWORD \
+    -Q &quot;SELECT @@VERSION&quot; 2&gt;/dev/null
+  errstatus=$?
+  ((counter++))
+done
+
+# Display error if connection failed:
+if [ $errstatus = 1 ]
+then
+  echo Cannot connect to SQL Server, installation aborted
+  exit $errstatus
+fi
+
+# Optional new user creation:
+if [ ! -z $SQL_INSTALL_USER ] &amp;&amp; [ ! -z $SQL_INSTALL_USER_PASSWORD ]
+then
+  echo Creating user $SQL_INSTALL_USER
+  /opt/mssql-tools/bin/sqlcmd \
+    -S localhost \
+    -U SA \
+    -P $MSSQL_SA_PASSWORD \
+    -Q &quot;CREATE LOGIN [$SQL_INSTALL_USER] WITH PASSWORD=N'$SQL_INSTALL_USER_PASSWORD', DEFAULT_DATABASE=[master], CHECK_EXPIRATION=ON, CHECK_POLICY=ON; ALTER SERVER ROLE [sysadmin] ADD MEMBER [$SQL_INSTALL_USER]&quot;
+fi
+
+echo Done!
+</code></pre>
+<p>运行脚本等着安装完成</p>
+<h2 id="开启表的cdc">开启表的cdc</h2>
+<h3 id="创建shihu数据库">创建shihu数据库</h3>
+<h3 id="建测试表">建测试表</h3>
+<pre><code>IF EXISTS (SELECT * FROM sys.all_objects WHERE object_id = OBJECT_ID(N'[dbo].[dt_test]') AND type IN ('U'))
+	DROP TABLE [dbo].[dt_test]
+GO
+
+CREATE TABLE [dbo].[dt_test] (
+  [tid] int  NOT NULL,
+  [tname] nvarchar(200) COLLATE SQL_Latin1_General_CP1_CI_AS  NULL,
+  [tidcard] nvarchar(200) COLLATE SQL_Latin1_General_CP1_CI_AS  NULL,
+  [tbirthday] date  NULL,
+  [tmobile] nvarchar(200) COLLATE SQL_Latin1_General_CP1_CI_AS  NULL,
+  [temail] nvarchar(200) COLLATE SQL_Latin1_General_CP1_CI_AS  NULL,
+  [tgender] bigint  NULL,
+  [tcreate_time] datetime  NULL
+)
+GO
+
+ALTER TABLE [dbo].[dt_test] SET (LOCK_ESCALATION = TABLE)
+GO
+
+
+-- ----------------------------
+-- Primary Key structure for table dt_test
+-- ----------------------------
+ALTER TABLE [dbo].[dt_test] ADD CONSTRAINT [PK__dt_test__DC105B0FA908205A] PRIMARY KEY CLUSTERED ([tid])
+WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)  
+ON [PRIMARY]
+GO
+
+</code></pre>
+<h3 id="开启cdc">开启cdc</h3>
+<pre><code>USE shihu
+GO
+EXEC sys.sp_cdc_enable_db
+GO
+
+USE shihu
+GO
+EXEC sys.sp_cdc_enable_table
+@source_schema = 'dbo',
+@source_name   = ‘dt_test’,     
+@role_name     = NULL,
+@filegroup_name = 'PRIMARY',      
+@supports_net_changes = 1
+GO
+</code></pre>
+<h2 id="下载kafka插件">下载kafka插件</h2>
+<h3 id="官方文档">官方文档</h3>
+<p><a href="https://debezium.io/documentation/reference/1.3/connectors/sqlserver.html">https://debezium.io/documentation/reference/1.3/connectors/sqlserver.html</a></p>
+<h3 id="下载">下载</h3>
+<p><a href="https://repo1.maven.org/maven2/io/debezium/debezium-connector-sqlserver/1.2.5.Final/debezium-connector-sqlserver-1.2.5.Final-plugin.tar.gz">https://repo1.maven.org/maven2/io/debezium/debezium-connector-sqlserver/1.2.5.Final/debezium-connector-sqlserver-1.2.5.Final-plugin.tar.gz</a></p>
+<h3 id="创建插件目录">创建插件目录</h3>
+<p>在kafka跟目录创建 kafka_connect_plugins 目录<br>
+将下载的包解压到此目录中<br>
+<img src="https://oldcamel.run/post-images/1610074594464.png" alt="" loading="lazy"></p>
+<h3 id="修改kafkaconfigconnect-distributeproperties">修改kafka/config/connect-distribute.properties</h3>
+<p>bootstrap.servers=IP:9092<br>
+plugin.path= /kafka路径/kafka_connect_plugins</p>
+<h3 id="启动kafka-connect">启动kafka-connect</h3>
+<pre><code>./bin/connect-distributed.sh  config/connect-distributed.properties &gt;logs/ksc.log &amp;
+</code></pre>
+<p>开启成功的标志,postman可以使用访问端口8083（默认的端口号,可以在connect-distributed.properties 更改）</p>
+<h4 id="rest-api">rest api</h4>
+<pre><code>GET /connectors – 返回所有正在运行的connector名
+POST /connectors – 新建一个connector; 请求体必须是json格式并且需要包含name字段和config字段，name是connector的名字，config是json格式，必须包含你的connector的配置信息。
+GET /connectors/{name} – 获取指定connetor的信息
+GET /connectors/{name}/config – 获取指定connector的配置信息
+PUT /connectors/{name}/config – 更新指定connector的配置信息
+GET /connectors/{name}/status – 获取指定connector的状态，包括它是否在运行、停止、或者失败，如果发生错误，还会列出错误的具体信息。
+GET /connectors/{name}/tasks – 获取指定connector正在运行的task。
+GET /connectors/{name}/tasks/{taskid}/status – 获取指定connector的task的状态信息
+PUT /connectors/{name}/pause – 暂停connector和它的task，停止数据处理知道它被恢复。
+PUT /connectors/{name}/resume – 恢复一个被暂停的connector
+POST /connectors/{name}/restart – 重启一个connector，尤其是在一个connector运行失败的情况下比较常用
+POST /connectors/{name}/tasks/{taskId}/restart – 重启一个task，一般是因为它运行失败才这样做。
+DELETE /connectors/{name} – 删除一个connector，停止它的所有task并删除配置。
+</code></pre>
+<h4 id="添加sqlserver-connect">添加sqlserver connect</h4>
+<pre><code>curl --location --request POST 'http://localhost:8083/connectors' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    &quot;name&quot;: &quot;sqlserver178-connector&quot;,
+    &quot;config&quot;: {
+        &quot;connector.class&quot;: &quot;io.debezium.connector.sqlserver.SqlServerConnector&quot;,
+        &quot;database.hostname&quot;: &quot;sqlserver的ip&quot;,
+        &quot;database.port&quot;: &quot;1433&quot;,
+        &quot;database.user&quot;: &quot;sa&quot;,
+        &quot;database.password&quot;: &quot;test@12345678&quot;,
+        &quot;database.dbname&quot;: &quot;shihu&quot;,
+        &quot;database.server.name&quot;: &quot;fullfillment&quot;,
+        &quot;table.whitelist&quot;: &quot;dbo.dt_test&quot;,
+        &quot;database.history.kafka.bootstrap.servers&quot;: &quot;kafka的IP:9092&quot;,
+        &quot;database.history.kafka.topic&quot;: &quot;dbhistory.fullfillment&quot;,
+        &quot;database.history.producer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+        &quot;database.history.producer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+        &quot;database.history.producer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;123\&quot;;&quot;,
+        &quot;database.history.consumer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+        &quot;database.history.consumer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+        &quot;database.history.consumer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;123\&quot;;&quot;
+    }
+}'
+</code></pre>
+<h3 id="消费信息">消费信息</h3>
+<h4 id="consumerpreperties配置">consumer.preperties配置</h4>
+<pre><code>bootstrap.servers=localhost:9092
+group.id=test-consumer-group
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+</code></pre>
+<h4 id="修改器kafka-console-consumersh为kafka-console-consumer-saalsh倒数第二行添加">修改器kafka-console-consumer.sh为kafka-console-consumer-saal.sh倒数第二行添加</h4>
+<pre><code>export KAFKA_OPTS=&quot;-Djava.security.auth.login.config=/opt/kafka/kafka_2.13-2.6.0/config/kafka_client_jaas.conf&quot;
+</code></pre>
+<h4 id="启动">启动</h4>
+<pre><code>./bin/kafka-console-consumer-saal.sh --bootstrap-server localhost:9092 --topic fullfillment.dbo.dt_test --consumer.config config/consumer.properties
+</code></pre>
+<h4 id="消息示例">消息示例</h4>
+<pre><code>{
+    &quot;schema&quot;:{
+        &quot;type&quot;:&quot;struct&quot;,
+        &quot;fields&quot;:Array[6],
+        &quot;optional&quot;:false,
+        &quot;name&quot;:&quot;fullfillment.dbo.dt_test.Envelope&quot;
+    },
+    &quot;payload&quot;:{
+        &quot;before&quot;:{
+            &quot;tid&quot;:1,
+            &quot;tname&quot;:&quot;222&quot;,
+            &quot;tidcard&quot;:&quot;2&quot;,
+            &quot;tbirthday&quot;:-25567,
+            &quot;tmobile&quot;:&quot;1&quot;,
+            &quot;temail&quot;:&quot;1&quot;,
+            &quot;tgender&quot;:2,
+            &quot;tcreate_time&quot;:-2208988800000
+        },
+        &quot;after&quot;:{
+            &quot;tid&quot;:1,
+            &quot;tname&quot;:&quot;test&quot;,
+            &quot;tidcard&quot;:&quot;2&quot;,
+            &quot;tbirthday&quot;:-25567,
+            &quot;tmobile&quot;:&quot;1&quot;,
+            &quot;temail&quot;:&quot;1&quot;,
+            &quot;tgender&quot;:2,
+            &quot;tcreate_time&quot;:-2208988800000
+        },
+        &quot;source&quot;:Object{...},
+        &quot;op&quot;:&quot;u&quot;,
+        &quot;ts_ms&quot;:1610019731750,
+        &quot;transaction&quot;:null
+    }
+}
+</code></pre>
+<h4 id="oracle示例">oracle示例</h4>
+<pre><code>
+curl --location --request POST 'http://localhost:8083/connectors/' \
+--header 'Content-Type: application/json' \
+--data-raw '
+{
+    &quot;name&quot;: &quot;oracle-61-connector&quot;,
+    &quot;config&quot;: {
+        &quot;connector.class&quot;: &quot;com.ecer.kafka.connect.oracle.OracleSourceConnector&quot;,
+        &quot;db.name.alias&quot;: &quot;61test&quot;,
+        &quot;tasks.max&quot;: 1,
+        &quot;topic&quot;: &quot;kol&quot;,
+        &quot;db.name&quot;: &quot;portaldb&quot;,
+        &quot;db.hostname&quot;: &quot;oralce连接host地址&quot;,
+        &quot;db.port&quot;: 1521,
+        &quot;db.user&quot;: &quot;info&quot;,
+        &quot;db.user.password&quot;: &quot;111111&quot;,
+        &quot;db.fetch.size&quot;: 1,
+        &quot;table.whitelist&quot;: &quot;INFO.*,SPAUTH.*,WORKFLOW.*,FLOWABLE.*,OA.*&quot;,
+        &quot;table.blacklist&quot;: &quot;&quot;,
+        &quot;parse.dml.data&quot;: true,
+        &quot;reset.offset&quot;: false,
+        &quot;multitenant&quot;: false
+    }
+}
+</code></pre>
+<p>'</p>
+
+          <div class="toc-container"><ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E5%AE%89%E8%A3%85sqlserver">安装sqlserver</a></li>
+<li><a href="#%E5%BC%80%E5%90%AF%E8%A1%A8%E7%9A%84cdc">开启表的cdc</a>
+<ul>
+<li><a href="#%E5%88%9B%E5%BB%BAshihu%E6%95%B0%E6%8D%AE%E5%BA%93">创建shihu数据库</a></li>
+<li><a href="#%E5%BB%BA%E6%B5%8B%E8%AF%95%E8%A1%A8">建测试表</a></li>
+<li><a href="#%E5%BC%80%E5%90%AFcdc">开启cdc</a></li>
+</ul>
+</li>
+<li><a href="#%E4%B8%8B%E8%BD%BDkafka%E6%8F%92%E4%BB%B6">下载kafka插件</a>
+<ul>
+<li><a href="#%E5%AE%98%E6%96%B9%E6%96%87%E6%A1%A3">官方文档</a></li>
+<li><a href="#%E4%B8%8B%E8%BD%BD">下载</a></li>
+<li><a href="#%E5%88%9B%E5%BB%BA%E6%8F%92%E4%BB%B6%E7%9B%AE%E5%BD%95">创建插件目录</a></li>
+<li><a href="#%E4%BF%AE%E6%94%B9kafkaconfigconnect-distributeproperties">修改kafka/config/connect-distribute.properties</a></li>
+<li><a href="#%E5%90%AF%E5%8A%A8kafka-connect">启动kafka-connect</a>
+<ul>
+<li><a href="#rest-api">rest api</a></li>
+<li><a href="#%E6%B7%BB%E5%8A%A0sqlserver-connect">添加sqlserver connect</a></li>
+</ul>
+</li>
+<li><a href="#%E6%B6%88%E8%B4%B9%E4%BF%A1%E6%81%AF">消费信息</a>
+<ul>
+<li><a href="#consumerpreperties%E9%85%8D%E7%BD%AE">consumer.preperties配置</a></li>
+<li><a href="#%E4%BF%AE%E6%94%B9%E5%99%A8kafka-console-consumersh%E4%B8%BAkafka-console-consumer-saalsh%E5%80%92%E6%95%B0%E7%AC%AC%E4%BA%8C%E8%A1%8C%E6%B7%BB%E5%8A%A0">修改器kafka-console-consumer.sh为kafka-console-consumer-saal.sh倒数第二行添加</a></li>
+<li><a href="#%E5%90%AF%E5%8A%A8">启动</a></li>
+<li><a href="#%E6%B6%88%E6%81%AF%E7%A4%BA%E4%BE%8B">消息示例</a></li>
+<li><a href="#oracle%E7%A4%BA%E4%BE%8B">oracle示例</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+          
+          <hr />
+          <p class="next-post">下一篇：
+            <a href="https://oldcamel.run/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/">
+              <span class="post-title">
+                Kafka开启SASL用户名密码认证&rarr;
+              </span>
+            </a>
+          </p>
+          
+          <div class="comment" style="text-align: center;">
+            
+            <span id="/post/kafka-shi-xian-sqlserver-de-cdc-shu-ju-shi-shi-bian-geng/" class="leancloud_visitors"
+              data-flag-title="Kafka实现sqlserver的CDC数据实时变更">
+              <em class="post-meta-item-text">阅读量 </em>
+              <i class="leancloud-visitors-count">loading...</i>
+            </span>
+            
+
+            
+            
+            <script src='https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js'></script>
+
+<style>
+	div#vcomments{
+		width:100%;
+		max-width: 1000px;
+		padding: 2.5%
+	}
+</style>
+
+
+	<div id="vcomments"></div>
+
+<script>
+	new Valine({
+		el: '#vcomments',
+		appId: 'onbNkh3VH7sc2nRqV46lac7B-gzGzoHsz',
+		appKey: 'uiNYrD5ID5uBx8ri4YKzgz7K',
+		avatar: 'monsterid',
+		pageSize: 5,
+		recordIp: true,
+		placeholder: '留下点啥吧',
+		visitor: true,
+	});
+</script>
+
+            
+          </div>
+        </div>
+      </div>
+  </article>
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+          <ul class="list-inline text-center">
+            
+            
+            <li class="list-inline-item">
+              <a href="https://github.com/Old-Camel" target="_blank">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fab fa-github fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+            </li>
+            
+              
+            
+              
+            
+              
+            
+              
+            
+              
+            
+              
+            
+              
+              <!-- <li class="list-inline-item">
+              <a href="https://oldcamel.run/atom.xml" target="_blank">
+                <span class="fa-stack fa-lg">
+                  <i class="fas fa-circle fa-stack-2x"></i>
+                  <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
+                </span>
+              </a>
+              </li> -->
+          </ul>
+          <p class="copyright text-muted">Copyright &copy;<span>Old Camel</span><br><a href="https://github.com/getgridea/gridea" class="Themeinfo">Powered by Gridea</a></p>
+        </div>
+      </div>
+    </div>
+   </footer>
+  <!-- Bootstrap core JavaScript -->
+  <script src="https://cdn.bootcss.com/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+  <!-- <script src="https://oldcamel.run/media/scripts/bootstrap.bundle.min.js"></script> -->
+  <!-- Bootstrap core JavaScript -->
+  <script src="https://cdn.jsdelivr.net/gh/Alanrk/clean-cdn@1.0/scripts/clean-blog.min.js"></script>
+  <!-- <script src="https://oldcamel.run/media/scripts/clean-blog.min.js"></script> -->
+  <script src="//instant.page/3.0.0" type="module" defer integrity="sha384-OeDn4XE77tdHo8pGtE1apMPmAipjoxUQ++eeJa6EtJCfHlvijigWiJpD7VDPWXV1"></script>
+  <style type="text/css">a.back_to_top{text-decoration:none;position:fixed;bottom:40px;right:30px;background:#f0f0f0;height:40px;width:40px;border-radius:50%;line-height:36px;font-size:18px;text-align:center;transition-duration:.5s;transition-propety:background-color;display:none}a.back_to_top span{color:#888}a.back_to_top:hover{cursor:pointer;background:#dfdfdf}a.back_to_top:hover span{color:#555}@media print,screen and(max-width:580px){.back_to_top{display:none!important}}</style>
+<a id="back_to_top" href="#" class="back_to_top">
+  <span>▲</span></a>
+<script>$(document).ready((function(_this) {
+    return function() {
+      var bt;
+      bt = $('#back_to_top');
+      if ($(document).width() > 480) {
+        $(window).scroll(function() {
+          var st;
+          st = $(window).scrollTop();
+          if (st > 30) {
+            return bt.css('display', 'block')
+          } else {
+            return bt.css('display', 'none')
+          }
+        });
+        return bt.click(function() {
+          $('body,html').animate({
+            scrollTop: 0
+          },
+          800);
+          return false
+        })
+      }
+    }
+  })(this));</script>
+  
+  <div id="landlord-parent">
+    <div id="landlord">
+        <div class="message" style="opacity:0"></div>
+        <canvas id="live2d" width="240" height="250" class="live2d"></canvas>
+    </div>
+</div>
+
+<script type="text/javascript">
+    if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+        //移动端
+        console.log("------ 移动端");
+    } else {
+        console.log("------ PC端 " + navigator.userAgent);
+
+        addScript("https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/js/live2d.js", () => {
+            // 加载完成后再loadlive2d
+            loadlive2d("live2d", "https://oldcamel.run/media/live2d/assets/hijiki.model.json");
+        });
+
+        var home_Path = "https://oldcamel.run/";
+        addScript("https://oldcamel.run/media/live2d/js/message.js", () => { });
+    }
+
+    // 插入js文件，完成后callback
+    function addScript(jsfile, callback) {
+        var landlord_parent = document.getElementById("landlord-parent");
+        var script = document.createElement("script");
+        script.type = "text/javascript";
+        script.src = jsfile;
+        landlord_parent.appendChild(script);
+        script.onload = script.onreadystatechange = function () {
+            if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
+                script.onload = script.onreadystatechange = null;
+                if (callback && typeof callback == "function") {
+                    callback(); //window[callback]();如果传递字符串过来 调用window['函数名']() 调用方法
+                }
+            }
+        };
+    }
+</script>
+  
+  <script src="https://oldcamel.run/media/scripts/tocScript.js"></script>
+</body>
+
+</html>
