@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-01-08T03:49:43.410Z</updated>
+    <updated>2021-01-08T06:27:37.212Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -323,7 +323,9 @@ curl --location --request POST 'http://localhost:8083/connectors/' \
     }
 }
 </code></pre>
-<p>'</p>
+<h3 id="查看topic-list">查看topic list</h3>
+<pre><code>bin/kafka-topics.sh --zookeeper localhost --list
+</code></pre>
 ]]></content>
     </entry>
     <entry>
