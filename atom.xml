@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-02-20T07:27:51.358Z</updated>
+    <updated>2021-03-11T01:15:10.548Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -11,6 +11,123 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2021, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[linux 安装服务器资源监控 prometheus远程写入]]></title>
+        <id>https://oldcamel.run/post/linux-an-zhuang-fu-wu-qi-zi-yuan-jian-kong-prometheus-yuan-cheng-xie-ru/</id>
+        <link href="https://oldcamel.run/post/linux-an-zhuang-fu-wu-qi-zi-yuan-jian-kong-prometheus-yuan-cheng-xie-ru/">
+        </link>
+        <updated>2021-03-11T01:07:36.000Z</updated>
+        <content type="html"><![CDATA[<h2 id="1安装prometheus">1.安装prometheus</h2>
+<pre><code>wget -c https://github.com/prometheus/prometheus/releases/download/v2.23.0/prometheus-2.23.0.linux-amd64.tar.gz 
+tar zxvf prometheus-2.23.0.linux-amd64.tar.gz  -C /opt/ 
+cd /opt/ 
+ln -s prometheus-2.23.0.linux-amd64 prometheus 
+cat &gt; /etc/systemd/system/prometheus.service &lt;&lt;EOF 
+[Unit] 
+Description=prometheus 
+After=network.target 
+[Service] 
+Type=simple 
+WorkingDirectory=/opt/prometheus 
+ExecStart=/opt/prometheus/prometheus --config.file=/opt/prometheus/prometheus.yml
+LimitNOFILE=65536 
+PrivateTmp=true 
+RestartSec=2 
+StartLimitInterval=0 
+Restart=always 
+[Install] 
+WantedBy=multi-user.target 
+EOF 
+systemctl daemon-reload  
+systemctl enable prometheus 
+systemctl start prometheus 
+
+</code></pre>
+<h3 id="2配置prometheus">2.配置Prometheus</h3>
+<pre><code>cat &gt; /opt/prometheus/prometheus.yml &lt;&lt;EOF 
+# my global config 
+global: 
+  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute. 
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute. 
+  # scrape_timeout is set to the global default (10s). 
+  external_labels:
+        tenant: &quot;140test&quot;
+remote_write:
+  - url: &quot;url&quot;
+    basic_auth:
+      username: 用户名
+      password: 密码
+# Alertmanager configuration 
+alerting: 
+  alertmanagers: 
+  - static_configs: 
+    - targets: 
+      # - alertmanager:9093 
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'. 
+rule_files: 
+  # - &quot;first_rules.yml&quot; 
+  # - &quot;second_rules.yml&quot; 
+# A scrape configuration containing exactly one endpoint to scrape: 
+# Here it's Prometheus itself. 
+scrape_configs: 
+  # The job name is added as a label `job=&lt;job_name&gt;` to any timeseries scraped from this config. 
+  - job_name: 'servers' 
+    file_sd_configs: 
+    - refresh_interval: 61s 
+      files: 
+        - /opt/prometheus/servers/*.json 
+EOF 
+
+</code></pre>
+<h2 id="3创建node配置文件">3.创建node配置文件</h2>
+<pre><code>mkdir -p /opt/prometheus/servers
+cd /opt/prometheus/servers
+vim json.json
+[     
+    { 
+        &quot;targets&quot;: [ 
+            “xxx.xxx.xxx.xxx:9100&quot; 
+        ], 
+        &quot;labels&quot;: { 
+            &quot;instance&quot;: &quot;xxx.xxx.xxx.xxx&quot;, 
+            &quot;job&quot;: &quot;node_exporter&quot; 
+        } 
+    }
+   
+] 
+</code></pre>
+<h2 id="安装node_exporter">安装node_exporter</h2>
+<pre><code>Wget https://github.com/prometheus/node_exporter/releases/download/v1.0.1/node_exporter-1.0.1.linux-amd64.tar.gz 
+tar zxvf node_exporter-1.0.1.linux-amd64.tar.gz -C /opt/ 
+cd /opt/ 
+ln -s  node_exporter-1.0.1.linux-amd64 node_exporter 
+cat &gt; /etc/systemd/system/node_exporter.service &lt;&lt;EOF 
+[Unit] 
+Description=node_exporter 
+After=network.target 
+[Service] 
+Type=simple 
+WorkingDirectory=/opt/node_exporter 
+ExecStart=/opt/node_exporter/node_exporter 
+LimitNOFILE=65536 
+PrivateTmp=true 
+RestartSec=2 
+StartLimitInterval=0 
+Restart=always 
+[Install] 
+WantedBy=multi-user.target 
+EOF 
+systemctl daemon-reload 
+systemctl enable node_exporter 
+systemctl start node_exporter 
+systemctl restart prometheus 
+
+</code></pre>
+<h2 id="查看服务日志命令">查看服务日志命令</h2>
+<pre><code>journalctl -u prometheus
+</code></pre>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Kafka实现sqlserver的CDC数据实时变更]]></title>
         <id>https://oldcamel.run/post/kafka-shi-xian-sqlserver-de-cdc-shu-ju-shi-shi-bian-geng/</id>
