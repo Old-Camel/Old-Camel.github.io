@@ -10,14 +10,14 @@
 <meta name="keywords" content="">
 <meta name="description" content="欢迎访问[Old Camel]的个人博客">
 <meta name="author" content="kveln">
-<title>VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics | Old Camel</title>
+<title>Kafka实现oracle的CDC数据实时变更 | Old Camel</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
 <link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
 <link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
 <link
   href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
   rel='stylesheet' type='text/css'>
-<link rel="alternate" type="application/rss+xml" title="VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics | Old Camel » Feed"
+<link rel="alternate" type="application/rss+xml" title="Kafka实现oracle的CDC数据实时变更 | Old Camel » Feed"
   href="https://oldcamel.run/atom.xml">
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
@@ -38,8 +38,8 @@
     gtag('js', new Date());
     gtag('config', 'G-3TQNJ5FTMN');</script>
 
-  <meta property="og:description" content="VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics" />
-  <meta property="og:url" content="https://oldcamel.run/post/victoriametrics-an-zhuang/" />
+  <meta property="og:description" content="Kafka实现oracle的CDC数据实时变更" />
+  <meta property="og:url" content="https://oldcamel.run/post/kafka-shi-xian-oracle-de-cdc-shu-ju-shi-shi-bian-geng/" />
   <meta property="og:locale" content="zh-CN" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Old Camel" />
@@ -160,15 +160,15 @@
             <div class="post-heading">
               <span class="tags">
                 
-                <a href="https://oldcamel.run/tag/dITV2_NRd/" class="tag">VictoriaMetrics</a>
+                <a href="https://oldcamel.run/tag/AfOZDj8Cpm/" class="tag">kafka</a>
                 
-                <a href="https://oldcamel.run/tag/LXP4Ksl29/" class="tag">prometheus</a>
+                <a href="https://oldcamel.run/tag/L9nUjvZyjL/" class="tag">oracle</a>
                 
               </span>
-              <h1>VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics</h1>
+              <h1>Kafka实现oracle的CDC数据实时变更</h1>
               <span class="meta">
                 Posted on
-                2020-12-25，1 min read
+                2021-04-14，4 min read
               </span>
             </div>
           
@@ -183,36 +183,126 @@
       <div class="row">
         <div class="col-lg-8 col-md-10 mx-auto post-content-container">
           
-          <h2 id="victoriametrics-用来收集k8s集群中的prometheus指标信息">victoriametrics 用来收集k8s集群中的prometheus指标信息 。</h2>
-<p><a href="https://github.com/VictoriaMetrics/VictoriaMetrics">github地址</a><br>
-<a href="https://victoriametrics.github.io/#retention">官方文档地址</a><br>
-<a href="https://github.com/VictoriaMetrics/VictoriaMetrics/releases">下载二级制安装包</a></p>
-<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1608878459634.png" alt="" loading="lazy"></figure>
-<h2 id="启动主进程">启动主进程</h2>
-<p>运行端口8428</p>
-<pre><code class="language-shell">./victoria-metrics-prod -retentionPeriod=3 -selfScrapeInterval=10s &amp;
+          <h1 id="使用工具-debezium-oracle-connectororacle-logminer">使用工具  debezium-oracle-connector,oracle-LogMiner</h1>
+<h2 id="1-oracle-设置">1、oracle 设置</h2>
+<h3 id="开启归档模式">开启归档模式</h3>
+<pre><code class="language-sqlplus">alter system set db_recovery_file_dest_size = 10G;
+alter system set db_recovery_file_dest = '/home/oracle/oradta/recovery_area' scope=spfile;
+shutdown immediate
+startup mount
+alter database archivelog;
+alter database open;
+archive log list
+exit;
+
+ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;
+
 </code></pre>
-<h2 id="启动认证代理">启动认证代理</h2>
-<p>运行端口8427</p>
-<pre><code class="language-shell">./vmauth-prod -auth.config=/opt/vm/config/config.yml &amp;
+<h4 id="创建用户">创建用户</h4>
+<pre><code>CREATE USER myuser IDENTIFIED BY dbz
+   DEFAULT TABLESPACE 命名空间
+   QUOTA UNLIMITED ON 命名空间
 </code></pre>
-<h2 id="basic认证配置文件">basic认证配置文件</h2>
-<pre><code>users:
-- username: &quot;username&quot;
-  password: &quot;password&quot;
-  url_prefix: &quot;http://localhost:8428&quot;
+<h4 id="授权">授权</h4>
+<pre><code>GRANT CREATE SESSION TO myuser;
+GRANT CREATE TABLE TO myuser;
+GRANT CREATE SEQUENCE TO myuser;
+GRANT CREATE TRIGGER TO myuser;
+GRANT CREATE SESSION TO myuser;
+GRANT SELECT ON V_$DATABASE to myuser;
+GRANT FLASHBACK ANY TABLE TO myuser;
+GRANT SELECT ANY TABLE TO myuser;
+GRANT SELECT_CATALOG_ROLE TO myuser;
+GRANT EXECUTE_CATALOG_ROLE TO myuser;
+GRANT SELECT ANY TRANSACTION TO myuser;
+GRANT CREATE TABLE TO myuser;
+GRANT LOCK ANY TABLE TO myuser;
+GRANT ALTER ANY TABLE TO myuser;
+GRANT CREATE SEQUENCE TO myuser;
+GRANT EXECUTE ON DBMS_LOGMNR TO myuser;
+GRANT EXECUTE ON DBMS_LOGMNR_D TO myuser;
+GRANT SELECT ON V_$LOG TO myuser;
+GRANT SELECT ON V_$LOG_HISTORY TO myuser;
+GRANT SELECT ON V_$LOGMNR_LOGS TO myuser;
+GRANT SELECT ON V_$LOGMNR_CONTENTS TO myuser;
+GRANT SELECT ON V_$LOGMNR_PARAMETERS TO myuser;
+GRANT SELECT ON V_$LOGFILE TO myuser;
+GRANT SELECT ON V_$ARCHIVED_LOG TO myuser;
+GRANT SELECT ON V_$ARCHIVE_DEST_STATUS TO myuser;
+GRANT SELECT ON SYSTEM.LOGMNR_COL$ TO myuser;
+GRANT SELECT ON SYSTEM.LOGMNR_OBJ$ TO myuser;
+GRANT SELECT ON SYSTEM.LOGMNR_USER$ TO myuser;
+GRANT SELECT ON SYSTEM.LOGMNR_UID$ TO myuser;
 </code></pre>
-<h2 id="运行端口">运行端口</h2>
-<figure data-type="image" tabindex="2"><img src="https://oldcamel.run/post-images/1608878759387.png" alt="" loading="lazy"></figure>
+<h2 id="oracle客户端设置">oracle客户端设置</h2>
+<h3 id="下载">下载</h3>
+<pre><code>wget &quot;https://download.oracle.com/otn_software/linux/instantclient/19600/instantclient-basiclite-linux.x64-19.6.0.0.0dbru.zip&quot; -O /tmp/ic.zip；
+unzip /tmp/ic.zip -d  自定义目录
+</code></pre>
+<h3 id="环境变量">环境变量</h3>
+<p>设置LD_LIBRARY_PATH 指向 自定义目录</p>
+<h2 id="kafaka-connect-插件设置">kafaka connect 插件设置</h2>
+<h3 id="下载-2">下载</h3>
+<pre><code>wget &quot;https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&amp;g=io.debezium&amp;a=debezium-connector-oracle&amp;v=LATEST&amp;c=plugin&amp;e=tar.gz&quot; -O /tmp/dbz-ora.tgz；
+tar -xvf /tmp/dbz-ora.tgz --directory  kafaka 插件目录
+</code></pre>
+<h3 id="添加-ojdbc-jar到插件目录">添加 ojdbc jar到插件目录</h3>
+<pre><code>      curl https://maven.xwiki.org/externals/com/oracle/jdbc/ojdbc8/12.2.0.1/ojdbc8-12.2.0.1.jar -o ojdbc8-12.2.0.1.jar
+</code></pre>
+<h2 id="创建kafka-connect">创建kafka connect</h2>
+<pre><code>curl --location --request POST 'http://localhost:8083/connectors' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+   &quot;name&quot;: &quot;name&quot;,
+   &quot;config&quot;: {
+       &quot;connector.class&quot; : &quot;io.debezium.connector.oracle.OracleConnector&quot;,
+       &quot;tasks.max&quot; : &quot;1&quot;,
+       &quot;database.server.name&quot; : &quot;topic&quot;,
+       &quot;database.hostname&quot; : &quot;database_host&quot;,
+       &quot;database.port&quot; : &quot;1521&quot;,
+       &quot;database.user&quot; : &quot;myuser&quot;,
+       &quot;database.password&quot; : &quot;dbz&quot;,
+       &quot;database.dbname&quot; : &quot;orcl&quot;,
+       &quot;database.tablename.case.insensitive&quot;: &quot;true&quot;,
+       &quot;database.history.kafka.bootstrap.servers&quot; : &quot;localhost:9092&quot;,
+       &quot;database.history.kafka.topic&quot;: &quot;name-h&quot;,
+       &quot;table.include.list&quot;:&quot;AAA.BBB,CCC.DDD&quot;,
+        &quot;database.history.producer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+       &quot;database.history.producer.sasl.jaas.config&quot;:         &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;password\&quot;;&quot;,
+   &quot;database.history.producer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+    &quot;database.history.consumer.sasl.jaas.config&quot;:          &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot;   password=\&quot;password\&quot;;&quot;,
+     &quot;database.history.consumer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+       &quot;database.history.consumer.sasl.mechanism&quot;: &quot;PLAIN&quot;
+   }
+}'
+</code></pre>
 
           <div class="toc-container"><ul class="markdownIt-TOC">
-<li>
+<li><a href="#%E4%BD%BF%E7%94%A8%E5%B7%A5%E5%85%B7-debezium-oracle-connectororacle-logminer">使用工具  debezium-oracle-connector,oracle-LogMiner</a>
 <ul>
-<li><a href="#victoriametrics-%E7%94%A8%E6%9D%A5%E6%94%B6%E9%9B%86k8s%E9%9B%86%E7%BE%A4%E4%B8%AD%E7%9A%84prometheus%E6%8C%87%E6%A0%87%E4%BF%A1%E6%81%AF">victoriametrics 用来收集k8s集群中的prometheus指标信息 。</a></li>
-<li><a href="#%E5%90%AF%E5%8A%A8%E4%B8%BB%E8%BF%9B%E7%A8%8B">启动主进程</a></li>
-<li><a href="#%E5%90%AF%E5%8A%A8%E8%AE%A4%E8%AF%81%E4%BB%A3%E7%90%86">启动认证代理</a></li>
-<li><a href="#basic%E8%AE%A4%E8%AF%81%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">basic认证配置文件</a></li>
-<li><a href="#%E8%BF%90%E8%A1%8C%E7%AB%AF%E5%8F%A3">运行端口</a></li>
+<li><a href="#1-oracle-%E8%AE%BE%E7%BD%AE">1、oracle 设置</a>
+<ul>
+<li><a href="#%E5%BC%80%E5%90%AF%E5%BD%92%E6%A1%A3%E6%A8%A1%E5%BC%8F">开启归档模式</a>
+<ul>
+<li><a href="#%E5%88%9B%E5%BB%BA%E7%94%A8%E6%88%B7">创建用户</a></li>
+<li><a href="#%E6%8E%88%E6%9D%83">授权</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#oracle%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%AE%BE%E7%BD%AE">oracle客户端设置</a>
+<ul>
+<li><a href="#%E4%B8%8B%E8%BD%BD">下载</a></li>
+<li><a href="#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F">环境变量</a></li>
+</ul>
+</li>
+<li><a href="#kafaka-connect-%E6%8F%92%E4%BB%B6%E8%AE%BE%E7%BD%AE">kafaka connect 插件设置</a>
+<ul>
+<li><a href="#%E4%B8%8B%E8%BD%BD-2">下载</a></li>
+<li><a href="#%E6%B7%BB%E5%8A%A0-ojdbc-jar%E5%88%B0%E6%8F%92%E4%BB%B6%E7%9B%AE%E5%BD%95">添加 ojdbc jar到插件目录</a></li>
+</ul>
+</li>
+<li><a href="#%E5%88%9B%E5%BB%BAkafka-connect">创建kafka connect</a></li>
 </ul>
 </li>
 </ul>
@@ -220,17 +310,17 @@
           
           <hr />
           <p class="next-post">下一篇：
-            <a href="https://oldcamel.run/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/">
+            <a href="https://oldcamel.run/post/linux-an-zhuang-fu-wu-qi-zi-yuan-jian-kong-prometheus-yuan-cheng-xie-ru/">
               <span class="post-title">
-                flowable修改流程缓存实现自由流程&rarr;
+                linux 安装服务器资源监控 prometheus远程写入&rarr;
               </span>
             </a>
           </p>
           
           <div class="comment" style="text-align: center;">
             
-            <span id="/post/victoriametrics-an-zhuang/" class="leancloud_visitors"
-              data-flag-title="VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics">
+            <span id="/post/kafka-shi-xian-oracle-de-cdc-shu-ju-shi-shi-bian-geng/" class="leancloud_visitors"
+              data-flag-title="Kafka实现oracle的CDC数据实时变更">
               <em class="post-meta-item-text">阅读量 </em>
               <i class="leancloud-visitors-count">loading...</i>
             </span>
