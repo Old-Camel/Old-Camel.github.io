@@ -86,7 +86,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1618449408632"
+            <form id="gridea-search-form" style="position: relative" data-update="1618449625545"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -136,7 +136,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1618449408632"
+            <form id="gridea-search-form" style="position: relative" data-update="1618449625545"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -164,7 +164,7 @@
               <h1>Flink Sql 实现CDC数据实时同步特殊处理</h1>
               <span class="meta">
                 Posted on
-                2021-04-15，1 min read
+                2021-04-15，2 min read
               </span>
             </div>
           
@@ -193,11 +193,20 @@
 <h1 id="3-cdc数据插入设置主键">3、cdc数据插入设置主键</h1>
 <pre><code>PRIMARY KEY (AAA,BBB) NOT ENFORCED
 </code></pre>
+<h1 id="4-kafka-sink-sasl-connect插件设置认证">4、kafka sink sasl connect插件设置认证</h1>
+<pre><code>&quot;database.history.producer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+&quot;database.history.producer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;密码\&quot;;&quot;,
+&quot;database.history.producer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+&quot;database.history.consumer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;密码\&quot;;&quot;,
+&quot;database.history.consumer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+&quot;database.history.consumer.sasl.mechanism&quot;: &quot;PLAIN&quot;
+</code></pre>
 
           <div class="toc-container"><ul class="markdownIt-TOC">
 <li><a href="#1-decimal-%E7%B1%BB%E5%9E%8B%E5%9C%A8kafka%E4%B8%AD%E8%A7%A3%E6%9E%90%E4%B8%BA%E4%B9%B1%E7%A0%81">1、decimal 类型在kafka中解析为乱码</a></li>
 <li><a href="#2-%E6%97%A5%E6%9C%9F%E5%A4%84%E7%90%86">2、日期处理</a></li>
 <li><a href="#3-cdc%E6%95%B0%E6%8D%AE%E6%8F%92%E5%85%A5%E8%AE%BE%E7%BD%AE%E4%B8%BB%E9%94%AE">3、cdc数据插入设置主键</a></li>
+<li><a href="#4-kafka-sink-sasl-connect%E6%8F%92%E4%BB%B6%E8%AE%BE%E7%BD%AE%E8%AE%A4%E8%AF%81">4、kafka sink sasl connect插件设置认证</a></li>
 </ul>
 </div>
           

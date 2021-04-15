@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-04-15T01:16:58.076Z</updated>
+    <updated>2021-04-15T01:20:28.970Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -30,6 +30,14 @@
 </code></pre>
 <h1 id="3-cdc数据插入设置主键">3、cdc数据插入设置主键</h1>
 <pre><code>PRIMARY KEY (AAA,BBB) NOT ENFORCED
+</code></pre>
+<h1 id="4-kafka-sink-sasl-connect插件设置认证">4、kafka sink sasl connect插件设置认证</h1>
+<pre><code>&quot;database.history.producer.sasl.mechanism&quot;: &quot;PLAIN&quot;,
+&quot;database.history.producer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;密码\&quot;;&quot;,
+&quot;database.history.producer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+&quot;database.history.consumer.sasl.jaas.config&quot;: &quot;org.apache.kafka.common.security.plain.PlainLoginModule required username=\&quot;admin\&quot; password=\&quot;密码\&quot;;&quot;,
+&quot;database.history.consumer.security.protocol&quot;: &quot;SASL_PLAINTEXT&quot;,
+&quot;database.history.consumer.sasl.mechanism&quot;: &quot;PLAIN&quot;
 </code></pre>
 ]]></content>
     </entry>
