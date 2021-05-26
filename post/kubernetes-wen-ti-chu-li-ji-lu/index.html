@@ -10,14 +10,14 @@
 <meta name="keywords" content="">
 <meta name="description" content="欢迎访问[Old Camel]的个人博客">
 <meta name="author" content="kveln">
-<title>VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics | Old Camel</title>
+<title>Kubernetes 问题处理记录 | Old Camel</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
 <link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
 <link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
 <link
   href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
   rel='stylesheet' type='text/css'>
-<link rel="alternate" type="application/rss+xml" title="VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics | Old Camel » Feed"
+<link rel="alternate" type="application/rss+xml" title="Kubernetes 问题处理记录 | Old Camel » Feed"
   href="https://oldcamel.run/atom.xml">
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
@@ -38,8 +38,8 @@
     gtag('js', new Date());
     gtag('config', 'G-3TQNJ5FTMN');</script>
 
-  <meta property="og:description" content="VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics" />
-  <meta property="og:url" content="https://oldcamel.run/post/victoriametrics-an-zhuang/" />
+  <meta property="og:description" content="Kubernetes 问题处理记录" />
+  <meta property="og:url" content="https://oldcamel.run/post/kubernetes-wen-ti-chu-li-ji-lu/" />
   <meta property="og:locale" content="zh-CN" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Old Camel" />
@@ -160,15 +160,13 @@
             <div class="post-heading">
               <span class="tags">
                 
-                <a href="https://oldcamel.run/tag/dITV2_NRd/" class="tag">VictoriaMetrics</a>
-                
-                <a href="https://oldcamel.run/tag/LXP4Ksl29/" class="tag">prometheus</a>
+                <a href="https://oldcamel.run/tag/RISUKUMRV/" class="tag">kubernetes</a>
                 
               </span>
-              <h1>VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics</h1>
+              <h1>Kubernetes 问题处理记录</h1>
               <span class="meta">
                 Posted on
-                2020-12-25，1 min read
+                2021-05-26，1 min read
               </span>
             </div>
           
@@ -183,54 +181,34 @@
       <div class="row">
         <div class="col-lg-8 col-md-10 mx-auto post-content-container">
           
-          <h2 id="victoriametrics-用来收集k8s集群中的prometheus指标信息">victoriametrics 用来收集k8s集群中的prometheus指标信息 。</h2>
-<p><a href="https://github.com/VictoriaMetrics/VictoriaMetrics">github地址</a><br>
-<a href="https://victoriametrics.github.io/#retention">官方文档地址</a><br>
-<a href="https://github.com/VictoriaMetrics/VictoriaMetrics/releases">下载二级制安装包</a></p>
-<figure data-type="image" tabindex="1"><img src="https://oldcamel.run/post-images/1608878459634.png" alt="" loading="lazy"></figure>
-<h2 id="启动主进程">启动主进程</h2>
-<p>运行端口8428</p>
-<pre><code class="language-shell">./victoria-metrics-prod -retentionPeriod=3 -selfScrapeInterval=10s &amp;
-</code></pre>
-<h2 id="启动认证代理">启动认证代理</h2>
-<p>运行端口8427</p>
-<pre><code class="language-shell">./vmauth-prod -auth.config=/opt/vm/config/config.yml &amp;
-</code></pre>
-<h2 id="basic认证配置文件">basic认证配置文件</h2>
-<pre><code>users:
-- username: &quot;username&quot;
-  password: &quot;password&quot;
-  url_prefix: &quot;http://localhost:8428&quot;
-</code></pre>
-<h2 id="运行端口">运行端口</h2>
-<figure data-type="image" tabindex="2"><img src="https://oldcamel.run/post-images/1608878759387.png" alt="" loading="lazy"></figure>
+          <h1 id="1-强制删除namespace">1、强制删除namespace</h1>
+<p>kubectl get namespace rook-ceph -o json &gt; rook-ceph.json<br>
+vim rook-ceph.json<br>
+删除spec中的内容<br>
+<code>&quot;spec&quot;: { }</code><br>
+开启kube-proxy   kubectl proxy</p>
+<p>另开一个ssh登录master，执行<br>
+<code>curl -k -H &quot;Content-Type: application/json&quot; -X PUT --data-binary @rook-ceph.json http://127.0.0.1:8001/api/v1/namespaces/rook-ceph/finalize</code><br>
+操作完成👌</p>
 
           <div class="toc-container"><ul class="markdownIt-TOC">
-<li>
-<ul>
-<li><a href="#victoriametrics-%E7%94%A8%E6%9D%A5%E6%94%B6%E9%9B%86k8s%E9%9B%86%E7%BE%A4%E4%B8%AD%E7%9A%84prometheus%E6%8C%87%E6%A0%87%E4%BF%A1%E6%81%AF">victoriametrics 用来收集k8s集群中的prometheus指标信息 。</a></li>
-<li><a href="#%E5%90%AF%E5%8A%A8%E4%B8%BB%E8%BF%9B%E7%A8%8B">启动主进程</a></li>
-<li><a href="#%E5%90%AF%E5%8A%A8%E8%AE%A4%E8%AF%81%E4%BB%A3%E7%90%86">启动认证代理</a></li>
-<li><a href="#basic%E8%AE%A4%E8%AF%81%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6">basic认证配置文件</a></li>
-<li><a href="#%E8%BF%90%E8%A1%8C%E7%AB%AF%E5%8F%A3">运行端口</a></li>
-</ul>
-</li>
+<li><a href="#1-%E5%BC%BA%E5%88%B6%E5%88%A0%E9%99%A4namespace">1、强制删除namespace</a></li>
 </ul>
 </div>
           
           <hr />
           <p class="next-post">下一篇：
-            <a href="https://oldcamel.run/post/flowable-xiu-gai-liu-cheng-huan-cun-shi-xian-zi-you-liu-cheng/">
+            <a href="https://oldcamel.run/post/flink-sql-shi-xian-cdc-shu-ju-shi-shi-tong-bu-te-shu-chu-li/">
               <span class="post-title">
-                flowable修改流程缓存实现自由流程&rarr;
+                Flink Sql 实现CDC数据实时同步特殊处理&rarr;
               </span>
             </a>
           </p>
           
           <div class="comment" style="text-align: center;">
             
-            <span id="/post/victoriametrics-an-zhuang/" class="leancloud_visitors"
-              data-flag-title="VictoriaMetrics 汇总多个Prometheus指标（一）安装VictoriaMetrics">
+            <span id="/post/kubernetes-wen-ti-chu-li-ji-lu/" class="leancloud_visitors"
+              data-flag-title="Kubernetes 问题处理记录">
               <em class="post-meta-item-text">阅读量 </em>
               <i class="leancloud-visitors-count">loading...</i>
             </span>
