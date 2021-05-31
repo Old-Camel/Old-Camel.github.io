@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-05-31T09:14:10.832Z</updated>
+    <updated>2021-05-31T09:16:26.012Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -22,47 +22,61 @@
 <thead>
 <tr>
 <th>初步计划列表</th>
+<th>完成情况</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>stars-spring-boot-starter  多数据源  jpa+mybatis</td>
+<td>☑️</td>
 </tr>
 <tr>
 <td>stars-spring-boot-starter  mybatis 换成mybatisplus</td>
+<td>☑️</td>
 </tr>
 <tr>
 <td>stars-spring-boot-starter  liquibase初步集成（多数据源在启动时刷新库）</td>
+<td>☑️</td>
 </tr>
 <tr>
 <td>认证中心 升级 2.5.0  spring-cloud-oauth2换成 spring-security  oauth2</td>
+<td></td>
 </tr>
 <tr>
 <td>认证中心 jpa在pgsql里运行, 调试功能</td>
+<td></td>
 </tr>
 <tr>
 <td>stars-spring-boot-starter  添加通用设置+工具类+pom依赖（依赖项目pom精简）</td>
+<td></td>
 </tr>
 <tr>
 <td>stars-archetype maven模板项目重新修改</td>
+<td></td>
 </tr>
 <tr>
 <td>k8s rook安装cephfs，测试pvc动态动态挂载，s3储存</td>
+<td></td>
 </tr>
 <tr>
 <td>pgsql helm版本</td>
+<td></td>
 </tr>
 <tr>
 <td>基于master数据源做租户管理功能。租户数据调整-&gt;动态增减数据源-&gt;liquibase初始化库（发布订阅）</td>
+<td></td>
 </tr>
 <tr>
 <td>文件中心 mongo存储修改为 cephfs存储 （minio）</td>
+<td></td>
 </tr>
 <tr>
 <td>消息中心等其他基础组件修改</td>
+<td></td>
 </tr>
 <tr>
 <td>cephfs 备份脚本</td>
+<td></td>
 </tr>
 </tbody>
 </table>
