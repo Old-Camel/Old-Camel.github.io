@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-05-31T09:12:21.661Z</updated>
+    <updated>2021-05-31T09:14:10.832Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -358,6 +358,8 @@ vim rook-ceph.json<br>
 <p>另开一个ssh登录master，执行<br>
 <code>curl -k -H &quot;Content-Type: application/json&quot; -X PUT --data-binary @rook-ceph.json http://127.0.0.1:8001/api/v1/namespaces/rook-ceph/finalize</code><br>
 操作完成👌</p>
+<p>#2、kubectl get pod 获取不到资源</p>
+<p>大概率是节点网络插件出现了问题。重启istiod 服务尝试将其运行在不同的节点上试下</p>
 ]]></content>
     </entry>
     <entry>

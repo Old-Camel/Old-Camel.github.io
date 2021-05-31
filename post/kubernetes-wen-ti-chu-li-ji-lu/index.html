@@ -86,7 +86,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1622452335132"
+            <form id="gridea-search-form" style="position: relative" data-update="1622452441281"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -136,7 +136,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1622452335132"
+            <form id="gridea-search-form" style="position: relative" data-update="1622452441281"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -190,6 +190,8 @@ vim rook-ceph.json<br>
 <p>另开一个ssh登录master，执行<br>
 <code>curl -k -H &quot;Content-Type: application/json&quot; -X PUT --data-binary @rook-ceph.json http://127.0.0.1:8001/api/v1/namespaces/rook-ceph/finalize</code><br>
 操作完成👌</p>
+<p>#2、kubectl get pod 获取不到资源</p>
+<p>大概率是节点网络插件出现了问题。重启istiod 服务尝试将其运行在不同的节点上试下</p>
 
           <div class="toc-container"><ul class="markdownIt-TOC">
 <li><a href="#1-%E5%BC%BA%E5%88%B6%E5%88%A0%E9%99%A4namespace">1、强制删除namespace</a></li>
