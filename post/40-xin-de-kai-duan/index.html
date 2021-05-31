@@ -86,7 +86,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1622451967095"
+            <form id="gridea-search-form" style="position: relative" data-update="1622452335132"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -136,7 +136,7 @@
         
         <li class="nav-item">
           <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1622451967095"
+            <form id="gridea-search-form" style="position: relative" data-update="1622452335132"
               action="/search/index.html">
               <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
               <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
@@ -325,28 +325,28 @@ public class TenantConfig implements WebMvcConfigurer {
 }
 </code></pre>
 <ul>
-<li>配置数据源<pre><code class="language-java"></code></pre>
-</li>
+<li>配置数据源</li>
 </ul>
-<p>@Bean(&quot;master&quot;)<br>
-@ConfigurationProperties(prefix = &quot;spring.datasource.hikari&quot;)<br>
-public DataSource master(){<br>
-HikariDataSource build = (HikariDataSource)DataSourceBuilder.create().build();<br>
-build.setTransactionIsolation(&quot;TRANSACTION_READ_COMMITTED&quot;);<br>
-return build;<br>
-}</p>
-<pre><code>  @Bean
-@Primary
-public DataSource dataSource(){
-    DynamicDataSource dynamicDataSource = new DynamicDataSource();
-    HashMap&lt;Object, Object&gt; dataSourceMap = new HashMap&lt;&gt;();
-    dataSourceMap.put(&quot;master&quot;,master());
-    dynamicDataSource.setDefaultDataSource(master());
-    dynamicDataSource.setDataSources(dataSourceMap);
-    dynamicDataSource.afterPropertiesSet();
-    return  dynamicDataSource;
-}
-  ```
+<pre><code class="language-java">
+ @Bean(&quot;master&quot;)
+   @ConfigurationProperties(prefix = &quot;spring.datasource.hikari&quot;)
+   public DataSource master(){
+       HikariDataSource build = (HikariDataSource)DataSourceBuilder.create().build();
+       build.setTransactionIsolation(&quot;TRANSACTION_READ_COMMITTED&quot;);
+       return build;
+   }
+   @Bean
+   @Primary
+   public DataSource dataSource(){
+       DynamicDataSource dynamicDataSource = new DynamicDataSource();
+       HashMap&lt;Object, Object&gt; dataSourceMap = new HashMap&lt;&gt;();
+       dataSourceMap.put(&quot;master&quot;,master());
+       dynamicDataSource.setDefaultDataSource(master());
+       dynamicDataSource.setDataSources(dataSourceMap);
+       dynamicDataSource.afterPropertiesSet();
+       return  dynamicDataSource;
+   }
+
 </code></pre>
 <ul>
 <li>多数据源读取</li>

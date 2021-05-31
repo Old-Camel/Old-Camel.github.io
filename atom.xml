@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-05-31T09:06:14.856Z</updated>
+    <updated>2021-05-31T09:12:21.661Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -163,28 +163,28 @@ public class TenantConfig implements WebMvcConfigurer {
 }
 </code></pre>
 <ul>
-<li>配置数据源<pre><code class="language-java"></code></pre>
-</li>
+<li>配置数据源</li>
 </ul>
-<p>@Bean(&quot;master&quot;)<br>
-@ConfigurationProperties(prefix = &quot;spring.datasource.hikari&quot;)<br>
-public DataSource master(){<br>
-HikariDataSource build = (HikariDataSource)DataSourceBuilder.create().build();<br>
-build.setTransactionIsolation(&quot;TRANSACTION_READ_COMMITTED&quot;);<br>
-return build;<br>
-}</p>
-<pre><code>  @Bean
-@Primary
-public DataSource dataSource(){
-    DynamicDataSource dynamicDataSource = new DynamicDataSource();
-    HashMap&lt;Object, Object&gt; dataSourceMap = new HashMap&lt;&gt;();
-    dataSourceMap.put(&quot;master&quot;,master());
-    dynamicDataSource.setDefaultDataSource(master());
-    dynamicDataSource.setDataSources(dataSourceMap);
-    dynamicDataSource.afterPropertiesSet();
-    return  dynamicDataSource;
-}
-  ```
+<pre><code class="language-java">
+ @Bean(&quot;master&quot;)
+   @ConfigurationProperties(prefix = &quot;spring.datasource.hikari&quot;)
+   public DataSource master(){
+       HikariDataSource build = (HikariDataSource)DataSourceBuilder.create().build();
+       build.setTransactionIsolation(&quot;TRANSACTION_READ_COMMITTED&quot;);
+       return build;
+   }
+   @Bean
+   @Primary
+   public DataSource dataSource(){
+       DynamicDataSource dynamicDataSource = new DynamicDataSource();
+       HashMap&lt;Object, Object&gt; dataSourceMap = new HashMap&lt;&gt;();
+       dataSourceMap.put(&quot;master&quot;,master());
+       dynamicDataSource.setDefaultDataSource(master());
+       dynamicDataSource.setDataSources(dataSourceMap);
+       dynamicDataSource.afterPropertiesSet();
+       return  dynamicDataSource;
+   }
+
 </code></pre>
 <ul>
 <li>多数据源读取</li>
