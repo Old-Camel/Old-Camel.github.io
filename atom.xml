@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-05-31T09:32:10.333Z</updated>
+    <updated>2021-06-01T02:42:07.573Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -27,15 +27,15 @@
 </thead>
 <tbody>
 <tr>
-<td>stars-spring-boot-starter  多数据源  jpa+mybatis</td>
+<td>mars-spring-boot-starter  多数据源  jpa+mybatis</td>
 <td>☑️</td>
 </tr>
 <tr>
-<td>stars-spring-boot-starter  mybatis 换成mybatisplus</td>
+<td>mars-spring-boot-starter  mybatis 换成mybatisplus</td>
 <td>☑️</td>
 </tr>
 <tr>
-<td>stars-spring-boot-starter  liquibase初步集成（多数据源在启动时刷新库）</td>
+<td>mars-spring-boot-starter  liquibase初步集成（多数据源在启动时刷新库）</td>
 <td>☑️</td>
 </tr>
 <tr>
@@ -47,11 +47,11 @@
 <td></td>
 </tr>
 <tr>
-<td>stars-spring-boot-starter  添加通用设置+工具类+pom依赖（依赖项目pom精简）</td>
+<td>mars-spring-boot-starter  添加通用设置+工具类+pom依赖（依赖项目pom精简）</td>
 <td></td>
 </tr>
 <tr>
-<td>stars-archetype maven模板项目重新修改</td>
+<td>mars-archetype maven模板项目重新修改</td>
 <td></td>
 </tr>
 <tr>
@@ -80,7 +80,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="stars-spring-boot-starter-多数据源-jpamybatis">stars-spring-boot-starter  多数据源  jpa+mybatis</h2>
+<h2 id="mars-spring-boot-starter-多数据源-jpamybatis">mars-spring-boot-starter  多数据源  jpa+mybatis</h2>
 <p>多租户系统,数据库按租户区分数据源。计划每个租户单独数据源部署，所以先搞个启动器配置多数据源。<br>
 多数据源实现:继承AbstractRoutingDataSource，重写determineCurrentLookupKey方法 返回自定义的key。这个key 用拦截器在请求头里获取用户的租户值放到一个线程变量里。</p>
 <ul>
@@ -291,7 +291,7 @@ public class DynamicDataSource  extends AbstractRoutingDataSource {
     }
 }
 </code></pre>
-<h1 id="stars-spring-boot-starter-mybatis-换成mybatisplus">stars-spring-boot-starter  mybatis 换成mybatisplus</h1>
+<h1 id="mars-spring-boot-starter-mybatis-换成mybatisplus">mars-spring-boot-starter  mybatis 换成mybatisplus</h1>
 <p>因为部分项目组用了mybatisplus,在启动器里把mybatis升级成mybatisplus，里面分页插件 采用 pagehelper+mybatisplus自带分页 并存的方式。</p>
 <ul>
 <li>添加依赖</li>
@@ -354,6 +354,146 @@ public class DynamicDataSource  extends AbstractRoutingDataSource {
         interceptor.setProperties(this.pageHelperProperties());
         return interceptor;
     }
+</code></pre>
+<h1 id="mars-spring-boot-starter-liquibase初步集成多数据源在启动时刷新库">mars-spring-boot-starter  liquibase初步集成（多数据源在启动时刷新库)</h1>
+<ul>
+<li>CustomLiquibaseProperties</li>
+</ul>
+<pre><code class="language-java">public class CustomLiquibaseProperties extends LiquibaseProperties {
+    /**
+     * 是否是除master数据库外其他数据库同步更新
+     */
+    private boolean global=true;
+    public boolean isGlobal() {
+        return global;
+    }
+    public void setGlobal(boolean global) {
+        this.global = global;
+    }
+}
+
+
+</code></pre>
+<p>项目配置文件配置</p>
+<pre><code class="language-properties">spring.liquibase.enabled=true
+spring.liquibase.default-schema=public
+spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml
+spring.liquibase.database-change-log-table=LIQUIBASE_CHANGELOG_TEST
+spring.liquibase.database-change-log-lock-table=LIQUIBASE_CHANGELOG_LOCK_TEST
+
+</code></pre>
+<ul>
+<li>
+<p>LiquibaseConfig</p>
+<pre><code class="language-java"></code></pre>
+</li>
+</ul>
+<p>public class LiquibaseConfig {<br>
+private CustomLiquibaseProperties properties;<br>
+@Bean<br>
+@DependsOn(&quot;dataSource&quot;)<br>
+public DataSourceSpringLiquibase springLiquibase(DynamicDataSource dataSource) {<br>
+DataSourceSpringLiquibase dataSourceSpringLiquibase = new DataSourceSpringLiquibase(dataSource,properties);<br>
+return dataSourceSpringLiquibase;<br>
+}<br>
+}</p>
+<pre><code>
+- DataSourceSpringLiquibase
+
+```java
+
+public class DataSourceSpringLiquibase implements ResourceLoaderAware {
+    public static final String DISABLED_MESSAGE = &quot;Liquibase is disabled&quot;;
+    public static final String STARTING_SYNC_MESSAGE = &quot;Starting Liquibase synchronously&quot;;
+    public static final String STARTED_MESSAGE = &quot;Liquibase has updated your database in {} ms&quot;;
+    public static final String EXCEPTION_MESSAGE = &quot;Liquibase could not start correctly, your database is NOT ready: &quot; + &quot;{}&quot;;
+    public static final long SLOWNESS_THRESHOLD = 5; // seconds
+    public static final String SLOWNESS_MESSAGE = &quot;Warning, Liquibase took more than {} seconds to start up!&quot;;
+    private DynamicDataSource dynamicDataSource;
+    private CustomLiquibaseProperties customLiquibaseProperties;
+    private ResourceLoader resourceLoader;
+
+
+    public DataSourceSpringLiquibase(DynamicDataSource dynamicDataSource, CustomLiquibaseProperties customLiquibaseProperties) {
+        this.dynamicDataSource = dynamicDataSource;
+        this.customLiquibaseProperties = customLiquibaseProperties;
+    }
+    public void run() throws Exception {
+        log.info(&quot;DataSources based multiTenancy enabled&quot;);
+        runOnAllDataSources();
+    }
+    private void runOnAllDataSources() throws Exception {
+        Map&lt;Object, DataSource&gt; resolvedDataSources = this.dynamicDataSource.getResolvedDataSources();
+        for (Map.Entry&lt;Object, DataSource&gt; entry : resolvedDataSources.entrySet()) {
+            Object tenant = entry.getKey();
+            String t=(String) tenant;
+            if(customLiquibaseProperties.isGlobal()){
+                if(t.equals(&quot;master&quot;)){
+                    continue;
+                }
+            }else{
+                if(!t.equals(&quot;master&quot;)){
+                    continue;
+                }
+            }
+            DataSource dataSource = entry.getValue();
+            init(tenant, dataSource);
+        }
+
+    }
+
+    private void init(Object tenant, DataSource dataSource) throws LiquibaseException {
+        log.info(&quot;Initializing Liquibase for data source &quot; + tenant);
+        SpringLiquibase liquibase = getSpringLiquibase(dataSource, customLiquibaseProperties);
+        try {
+            log.warn(STARTING_SYNC_MESSAGE);
+            initDb(liquibase);
+        } catch (LiquibaseException e) {
+            log.error(EXCEPTION_MESSAGE, e.getMessage(), e);
+            throw e;
+        }
+        log.info(&quot;Liquibase run for data source &quot; + tenant);
+    }
+
+    private void initDb(SpringLiquibase liquibase) throws LiquibaseException {
+        StopWatch watch = new StopWatch();
+        watch.start();
+        liquibase.afterPropertiesSet();
+        watch.stop();
+        log.debug(STARTED_MESSAGE, watch.getTotalTimeMillis());
+        if (watch.getTotalTimeMillis() &gt; SLOWNESS_THRESHOLD * 1000L) {
+            log.warn(SLOWNESS_MESSAGE, SLOWNESS_THRESHOLD);
+        }
+    }
+
+
+    private SpringLiquibase getSpringLiquibase(DataSource dataSource, CustomLiquibaseProperties properties) {
+        SpringLiquibase liquibase = new SpringLiquibase();
+        liquibase.setChangeLog(properties.getChangeLog());
+        liquibase.setChangeLogParameters(properties.getParameters());
+        liquibase.setContexts(properties.getContexts());
+        liquibase.setLabels(properties.getLabels());
+        liquibase.setDropFirst(properties.isDropFirst());
+        liquibase.setShouldRun(properties.isEnabled());
+        liquibase.setRollbackFile(properties.getRollbackFile());
+        liquibase.setResourceLoader(resourceLoader);
+        liquibase.setDataSource(dataSource);
+        liquibase.setDefaultSchema(properties.getDefaultSchema());
+        liquibase.setLiquibaseSchema(properties.getLiquibaseSchema());
+        liquibase.setLiquibaseTablespace(properties.getLiquibaseTablespace());
+        liquibase.setDatabaseChangeLogTable(properties.getDatabaseChangeLogTable());
+        liquibase.setDatabaseChangeLogLockTable(properties.getDatabaseChangeLogLockTable());
+        return liquibase;
+    }
+}
+
+</code></pre>
+<ul>
+<li>修改项目ApplicationRunnner<br>
+run方法最后添加</li>
+</ul>
+<pre><code class="language-java">//刷新数据库
+ dataSourceSpringLiquibase.run(); 
 </code></pre>
 ]]></content>
     </entry>
