@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-06-01T08:04:09.489Z</updated>
+    <updated>2021-06-11T06:52:36.738Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -709,43 +709,19 @@ SELECT '[4,4)'::int4range;
 </tr>
 <tr>
 <td>认证中心 升级 2.5.0  spring-cloud-oauth2换成 spring-security  oauth2</td>
-<td></td>
+<td>☑️</td>
 </tr>
 <tr>
 <td>认证中心 jpa在pgsql里运行, 调试功能</td>
-<td></td>
+<td>☑️</td>
 </tr>
 <tr>
 <td>mars-spring-boot-starter  添加通用设置+工具类+pom依赖（依赖项目pom精简）</td>
-<td></td>
+<td>☑️</td>
 </tr>
 <tr>
 <td>mars-archetype maven模板项目重新修改</td>
-<td></td>
-</tr>
-<tr>
-<td>k8s rook安装cephfs，测试pvc动态动态挂载，s3储存</td>
-<td></td>
-</tr>
-<tr>
-<td>pgsql helm版本</td>
-<td></td>
-</tr>
-<tr>
-<td>基于master数据源做租户管理功能。租户数据调整-&gt;动态增减数据源-&gt;liquibase初始化库（发布订阅）</td>
-<td></td>
-</tr>
-<tr>
-<td>文件中心 mongo存储修改为 cephfs存储 （minio）</td>
-<td></td>
-</tr>
-<tr>
-<td>消息中心等其他基础组件修改</td>
-<td></td>
-</tr>
-<tr>
-<td>cephfs 备份脚本</td>
-<td></td>
+<td>☑️</td>
 </tr>
 </tbody>
 </table>
@@ -1164,6 +1140,333 @@ run方法最后添加</li>
 <pre><code class="language-java">//刷新数据库
  dataSourceSpringLiquibase.run(); 
 </code></pre>
+<h1 id="项目liquibase配置">项目liquibase配置</h1>
+<h2 id="maven配置">maven配置</h2>
+<pre><code class="language-xml">&lt;plugin&gt;
+               &lt;groupId&gt;org.liquibase&lt;/groupId&gt;
+               &lt;artifactId&gt;liquibase-maven-plugin&lt;/artifactId&gt;
+               &lt;version&gt;4.3.5&lt;/version&gt;
+               &lt;configuration&gt;
+                   &lt;!-- properties文件路径，该文件记录了数据库连接信息等--&gt;
+                   &lt;propertyFile&gt;src/main/resources/liquibase.properties&lt;/propertyFile&gt;
+                   &lt;!-- 是否每次都重新加载properties --&gt;
+                   &lt;propertyFileWillOverride&gt;true&lt;/propertyFileWillOverride&gt;
+                   &lt;!-- 输出文件的编码 --&gt;
+                   &lt;outputFileEncoding&gt;UTF-8&lt;/outputFileEncoding&gt;
+                   &lt;!-- 是否需要弹出确认框 --&gt;
+                   &lt;promptOnNonLocalDatabase&gt;false&lt;/promptOnNonLocalDatabase&gt;
+                   &lt;!-- diff 输出文件目录 这个文件夹被git 忽略了--&gt;
+                   &lt;diffChangeLogFile&gt;
+                       src/main/resources/liquibase/diff/liquibase-diff-${maven.build.timestamp}-changeLog.xml
+                   &lt;/diffChangeLogFile&gt;
+                   &lt;!-- 日志界别 --&gt;
+                   &lt;logging&gt;debug&lt;/logging&gt;
+               &lt;/configuration&gt;
+               &lt;dependencies&gt;
+                   &lt;dependency&gt;
+                       &lt;groupId&gt;org.liquibase.ext&lt;/groupId&gt;
+                       &lt;artifactId&gt;liquibase-hibernate5&lt;/artifactId&gt;
+                       &lt;version&gt;4.3.5&lt;/version&gt;
+                   &lt;/dependency&gt;
+                   &lt;dependency&gt;
+                       &lt;groupId&gt;com.yunzainfo.cloud&lt;/groupId&gt;
+                       &lt;artifactId&gt;mars-spring-boot-starter&lt;/artifactId&gt;
+                       &lt;version&gt;0.0.1-SNAPSHOT&lt;/version&gt;
+                   &lt;/dependency&gt;
+               &lt;/dependencies&gt;
+           &lt;/plugin&gt;
+</code></pre>
+<h2 id="liquibase配置">liquibase配置</h2>
+<pre><code>
+#项目的表所在的schema
+defaultSchemaName=spauth
+#liquibase的表所在的schema
+changelogSchemaName=public
+#下面两个配置注意修改后缀为项目简称，必须注意不能与已有的表重名
+databaseChangeLogTableName=LIQUIBASE_CHANGELOG_AUTH
+databaseChangeLogLockTableName=LIQUIBASE_CHANGELOG_LOCK_AUTH
+#变更数据集配置文件,一般不用修改
+changeLogFile=src/main/resources/liquibase/db.changelog-master.xml
+#要生成的初始化数据集文件。只在项目初始化的时候用
+outputChangeLogFile=src/main/resources/liquibase/changes/init1.changelog.xml
+#数据库连接
+url: jdbc:postgresql://192.168.xxx.xxx:5434/mars
+#用户名
+username=postgres
+#密码
+password=xxxxxx
+#驱动
+driver=org.postgresql.Driver
+#用jpa的项目把报名修改成项目里的entity的包路径,可用diff命令，生成diff文件,用来创建增量changeset
+referenceUrl=hibernate:spring:com.yunzainfo.cloud.auth.entity?\
+   dialect=org.hibernate.dialect.PostgreSQLDialect&amp;\
+   hibernate.physical_naming_strategy=org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy&amp;\
+   hibernate.implicit_naming_strategy=org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+#比较类型, 在用jpa的diff时，用diffTypes=tables,columns,在项目初始化时用下面那个
+#diffTypes=tables,columns
+diffTypes=tables,functions,views,columns,indexes,foreignkeys,primarykeys,uniqueconstraints,data
+
+
+</code></pre>
+<h2 id="spring配置">spring配置</h2>
+<pre><code>liquibase:
+  change-log: classpath:liquibase/db.changelog-master.xml
+  enabled: true
+  database-change-log-table: LIQUIBASE_CHANGELOG_AUTH
+  database-change-log-lock-table: LIQUIBASE_CHANGELOG_LOCK_AUTH
+  liquibase-schema: public
+  default-schema: spauth
+</code></pre>
+<h1 id="oauth2-多租户重点配置项">oauth2 多租户重点配置项</h1>
+<h2 id="requestwrapper-修改request参数header-装饰类">RequestWrapper 修改request参数+header 装饰类</h2>
+<pre><code class="language-java">
+/**
+ * Created by IntelliJ IDEA
+ * TODO: TODO
+ *
+ * @author: 徐成
+ * Date: 2021/6/8
+ * Time: 5:20 下午
+ * Email: old_camel@163.com
+ */
+public class RequestWrapper extends HttpServletRequestWrapper {
+    private static final Logger log = LoggerFactory.getLogger(RequestWrapper.class);
+    private String mBody;
+    private Map&lt;String, String[]&gt; parameterMap; // 所有参数的Map集合
+    public RequestWrapper(HttpServletRequest request) {
+        super(request);
+        this.mBody = this.getBody(request);
+        parameterMap = request.getParameterMap();
+
+    }
+
+    /**
+     * 获取所有参数名
+     *
+     * @return 返回所有参数名
+     */
+    @Override
+    public Enumeration&lt;String&gt; getParameterNames() {
+        Vector&lt;String&gt; vector = new Vector&lt;String&gt;(parameterMap.keySet());
+        return vector.elements();
+    }
+
+    /**
+     * 获取指定参数名的值，如果有重复的参数名，则返回第一个的值 接收一般变量 ，如text类型
+     *
+     * @param name 指定参数名
+     * @return 指定参数名的值
+     */
+    @Override
+    public String getParameter(String name) {
+        String[] results = parameterMap.get(name);
+        return results[0];
+    }
+
+
+    /**
+     * 获取指定参数名的所有值的数组，如：checkbox的所有数据
+     * 接收数组变量 ，如checkobx类型
+     */
+    @Override
+    public String[] getParameterValues(String name) {
+        return parameterMap.get(name);
+    }
+
+    @Override
+    public Map&lt;String, String[]&gt; getParameterMap() {
+        return parameterMap;
+    }
+
+    public void setParameterMap(Map&lt;String, String[]&gt; parameterMap) {
+        this.parameterMap = parameterMap;
+    }
+
+    public static String convertStreamToString(InputStream is) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            String line;
+            try {
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line + &quot;\n&quot;);
+                }
+            } catch (IOException var13) {
+                log.error(&quot;IOException&quot;, var13);
+            }
+        } finally {
+            try {
+                is.close();
+            } catch (IOException var12) {
+                log.error(&quot;IOException&quot;, var12);
+            }
+
+        }
+
+        return sb.toString();
+    }
+
+    private String getBody(HttpServletRequest request) {
+        try {
+            return convertStreamToString(request.getInputStream());
+        } catch (IOException var3) {
+            log.debug(var3.getMessage());
+            throw new YzCommonException(var3.getMessage());
+        }
+    }
+
+    public String getBody() {
+        return this.mBody;
+    }
+
+    @Override
+
+    public BufferedReader getReader() throws IOException {
+        return new BufferedReader(new InputStreamReader(this.getInputStream()));
+    }
+
+    @Override
+    public ServletInputStream getInputStream() throws IOException {
+        final ByteArrayInputStream bais = new ByteArrayInputStream(this.mBody.getBytes(Charset.defaultCharset()));
+        return new ServletInputStream() {
+            @Override
+            public boolean isFinished() {
+                return false;
+            }
+
+            @Override
+            public boolean isReady() {
+                return false;
+            }
+
+            @Override
+
+            public void setReadListener(ReadListener readListener) {
+            }
+
+            @Override
+            public int read() throws IOException {
+                return bais.read();
+            }
+        };
+    }
+}
+</code></pre>
+<h2 id="yzjdbcclientdetailsservice-的自定义jdbctemplete类">YzJdbcClientDetailsService 的自定义JdbcTemplete类</h2>
+<p>修改execute方法，用来切换数据源</p>
+<pre><code class="language-java"> @Nullable
+    private &lt;T&gt; T execute(PreparedStatementCreator psc, PreparedStatementCallback&lt;T&gt; action, boolean closeResources)
+            throws DataAccessException {
+        if(&quot;master&quot;.equals(DynamicDataSourceContextHolder.getDataSourceKey())) {
+            HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
+            final String tenantId = request.getHeader(X_TENANT_ID);
+            if (tenantId != null) {
+                DynamicDataSourceContextHolder.setDataSourceKey(tenantId);
+            }
+
+....
+
+</code></pre>
+<h2 id="用户登录拦截器-tenantuserloginfilter">用户登录拦截器 TenantUserLoginFilter</h2>
+<p>登录只传用户名密码 获取token</p>
+<pre><code class="language-java">@Slf4j
+@WebFilter(urlPatterns = &quot;/user/login&quot;, filterName = &quot;tenantUserLoginFilter&quot;)
+public class TenantUserLoginFilter extends GenericFilterBean {
+
+    private HashMap&lt;String, String[]&gt; webapp = new HashMap&lt;String, String[]&gt;() {
+        {
+            put(&quot;grant_type&quot;, new String[]{&quot;password&quot;});
+            put(&quot;client_id&quot;, new String[]{&quot;webapp&quot;});
+            put(&quot;scope&quot;, new String[]{&quot;webapp&quot;});
+            put(&quot;client_secret&quot;, new String[]{&quot;123456&quot;});
+        }
+    };
+
+    @Autowired
+    UserService userService;
+
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+        ParameterMap&lt;String, String[]&gt; parameterMap = (ParameterMap&lt;String, String[]&gt;) servletRequest.getParameterMap();
+        String username = parameterMap.get(&quot;username&quot;)[0];
+        TenantUser user = userService.getById(username);
+        if (user == null) {
+            final HttpServletResponse response = (HttpServletResponse) servletResponse;
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            ReturnEntity&lt;Object&gt; build = ReturnEntity.builder().errorMessage(&quot;用户不存在!&quot;).build();
+            response.getWriter().write(JSON.toJSONString(build));
+            response.getWriter().flush();
+            return;
+        }
+        RequestWrapper requestWrapper = new RequestWrapper((HttpServletRequest) servletRequest) {
+            /**
+             * 当调用request.getHeader(&quot;token&quot;)时，则获取请求参数中token值并当做Header的值返回 * @param name
+             * @return
+             */
+            @Override
+            public String getHeader(String name) {
+                // 先从原本的Request中获取头，如果为空且名字为token，则从参数中查找并返回
+                String superHeader = super.getHeader(name);
+                if (&quot;X_TenantID&quot;.equals(name) &amp;&amp; StringUtils.isEmpty(superHeader)) {
+                    return user.getTenantId();
+                }
+                return superHeader;
+            }
+        };
+        Map&lt;String, String[]&gt; map = new HashMap&lt;&gt;(requestWrapper.getParameterMap());
+        map.putAll(webapp);
+        requestWrapper.setParameterMap(map);
+        log.info(&quot;TenantUserLoginFilter 执行完成&quot;);
+        filterChain.doFilter(requestWrapper, servletResponse);
+    }
+}
+</code></pre>
+<h2 id="登录接口">登录接口</h2>
+<p>方法里直接转发到/oauth/token方法。注意这里的request是在过滤器里修改过的封装类。</p>
+<pre><code class="language-java">@Autowired
+    UserService userService;
+    @RequestMapping(value = &quot;/user/login&quot;,method = RequestMethod.POST)
+    public void loginOauth2( HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException {
+        request.getRequestDispatcher(&quot;/oauth/token&quot;).forward(request,response);
+
+</code></pre>
+<h2 id="覆盖-link-tokenendpoint做客户端的认证">覆盖 {@link TokenEndpoint}，做客户端的认证</h2>
+<pre><code class="language-java"> @Autowired
+    private TokenEndpoint tokenEndpoint;
+    @Autowired
+    AuthorizationServerSecurityConfiguration authorizationServerSecurityConfiguration;
+
+    @RequestMapping(value = &quot;/oauth/token&quot;, method = {RequestMethod.GET, RequestMethod.POST})
+    @ApiOperation(value = &quot;获取token&quot;)
+    public ResponseEntity&lt;OAuth2AccessToken&gt; getAccessToken(Principal principal, @RequestParam Map&lt;String, String&gt; parameters, HttpServletRequest request) throws HttpRequestMethodNotSupportedException {
+        if (!(principal instanceof Authentication)) {
+            String clientId = parameters.get(&quot;client_id&quot;);
+            String clientSecret = parameters.get(&quot;client_secret&quot;);
+            if (clientId == null) {
+                throw new BadCredentialsException(&quot;No client credentials presented&quot;);
+            }
+            if (clientSecret == null) {
+                clientSecret = &quot;&quot;;
+            }
+            clientId = clientId.trim();
+            UsernamePasswordAuthenticationToken authRequest = new UsernamePasswordAuthenticationToken(clientId,
+                    clientSecret);
+            Field httpField = ReflectUtil.getField(AuthorizationServerSecurityConfiguration.class, &quot;http&quot;);
+            HttpSecurity http = (HttpSecurity) ReflectUtil.getFieldValue(authorizationServerSecurityConfiguration, httpField);
+            AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+            Authentication authenticate = authenticationManager.authenticate(authRequest);
+            principal = authenticate;
+
+        }
+
+        return tokenEndpoint.postAccessToken(principal, parameters);
+    }
+
+</code></pre>
+<h1 id="结束">结束</h1>
+<p>升级搞定</p>
 ]]></content>
     </entry>
     <entry>
