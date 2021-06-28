@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-06-11T08:42:45.106Z</updated>
+    <updated>2021-06-28T10:00:47.965Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
@@ -11,6 +11,61 @@
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
     <rights>All rights reserved 2021, Old Camel</rights>
+    <entry>
+        <title type="html"><![CDATA[多租户系统redis 缓存]]></title>
+        <id>https://oldcamel.run/post/duo-zu-hu-xi-tong-redis-huan-cun/</id>
+        <link href="https://oldcamel.run/post/duo-zu-hu-xi-tong-redis-huan-cun/">
+        </link>
+        <updated>2021-06-28T09:28:38.000Z</updated>
+        <content type="html"><![CDATA[<h2 id="多租户系统用cacheable做接口缓存为了避免缓存数据混乱需要做缓存数据的租户隔离">多租户系统用@Cacheable做接口缓存,为了避免缓存数据混乱，需要做缓存数据的租户隔离。</h2>
+<h3 id="缓存过程源码分析">缓存过程源码分析：</h3>
+<ul>
+<li>
+<ol>
+<li>EnableCaching注解<br>
+<img src="https://oldcamel.run/post-images/1624872845862.png" alt="" loading="lazy"><br>
+EnableCaching中引入了@Import({CachingConfigurationSelector.class})</li>
+</ol>
+</li>
+<li>
+<p>2.CachingConfigurationSelector<br>
+<img src="https://oldcamel.run/post-images/1624873054168.png" alt="" loading="lazy"></p>
+<p>getProxyImports方法中设置了ProxyCachingConfiguration 代理配置类</p>
+</li>
+<li>
+<ol start="3">
+<li>CacheInterceptor<br>
+<img src="https://oldcamel.run/post-images/1624873141831.png" alt="" loading="lazy"><br>
+ProxyCachingConfiguration中配置了缓存拦截器CacheInterceptor类</li>
+</ol>
+</li>
+<li>
+<p>4.CacheAspectSupport<br>
+<img src="https://oldcamel.run/post-images/1624873286826.png" alt="" loading="lazy"><br>
+打开CacheInterceptor的父类CacheAspectSupport。<br>
+<img src="https://oldcamel.run/post-images/1624873358773.png" alt="" loading="lazy"><br>
+ProxyCachingConfiguration中调用的configure方法设置了缓存处理器 SimpleCacheResolver。</p>
+</li>
+<li>
+<p>5.获取缓存 key getCacheNames方法<br>
+<img src="https://oldcamel.run/post-images/1624873922073.png" alt="" loading="lazy"></p>
+</li>
+</ul>
+<h3 id="修改思路">修改思路</h3>
+<p>修改getCacheNames方法，添加租户id作为前缀</p>
+<p>现在直接复制源码做了修改，所有要修改的类添加统一前缀<br>
+<img src="https://oldcamel.run/post-images/1624874053089.png" alt="" loading="lazy"></p>
+<h4 id="关键地方记录">关键地方记录：</h4>
+<p><img src="https://oldcamel.run/post-images/1624874095560.png" alt="" loading="lazy"><br>
+<img src="https://oldcamel.run/post-images/1624874126630.png" alt="" loading="lazy"><br>
+<img src="https://oldcamel.run/post-images/1624874148169.png" alt="" loading="lazy"><br>
+<img src="https://oldcamel.run/post-images/1624874197651.png" alt="" loading="lazy"><br>
+<img src="https://oldcamel.run/post-images/1624874233299.png" alt="" loading="lazy"></p>
+<h3 id="后续">后续</h3>
+<p><img src="https://oldcamel.run/post-images/1624874340646.png" alt="" loading="lazy"><br>
+改完才发现，直接在RedisCacheConfigutation类中定义一个CacheResolver 的bean应该也是可以的。暂时先不改了。</p>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[PostgreSql 数据类型]]></title>
         <id>https://oldcamel.run/post/postgresql-shu-ju-lei-xing/</id>
@@ -2261,45 +2316,6 @@ spec:
 <figure data-type="image" tabindex="2"><img src="https://oldcamel.run/post-images/1608882571184.png" alt="" loading="lazy"></figure>
 <h2 id="victoriametrics-中不同集群中的指标获取">VictoriaMetrics 中不同集群中的指标获取</h2>
 <figure data-type="image" tabindex="3"><img src="https://oldcamel.run/post-images/1608882968056.png" alt="" loading="lazy"></figure>
-]]></content>
-    </entry>
-    <entry>
-        <title type="html"><![CDATA[VictoriaMetrics 汇总多个Prometheus指标（三）kube-prometheus安装]]></title>
-        <id>https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-kube-prometheus-an-zhuang/</id>
-        <link href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-kube-prometheus-an-zhuang/">
-        </link>
-        <updated>2020-12-25T07:32:20.000Z</updated>
-        <content type="html"><![CDATA[<p>kube-prometheus是Prometheus Operator 针对kubernetes的监控组件。<br>
-github地址<br>
-<a href="https://github.com/prometheus-operator/kube-prometheus">https://github.com/prometheus-operator/kube-prometheus</a></p>
-<h2 id="配置远程写入">配置远程写入</h2>
-<h3 id="basic用户名密码配置-secret">basic用户名密码配置 secret</h3>
-<pre><code>apiVersion: v1
-kind: Secret
-metadata:
-  name: vmuser
-  namespace: monitoring
-type: kubernetes.io/basic-auth
-stringData:
-  username: username
-  password: password
-</code></pre>
-<h3 id="添加远程写入-和外部标签">添加远程写入 和外部标签</h3>
-<p>修改prometheus-prometheus.yaml文件，添加</p>
-<pre><code>prometheusExternalLabelName: &quot;&quot;
-  replicaExternalLabelName: &quot;&quot;
-  externalLabels:
-    tenant: &quot;租户名称&quot;
-  remoteWrite:
-    - url: http://VictoriaMetrics连接地址/api/v1/write
-      basicAuth:
-       username:
-          key: username
-          name: vmuser
-       password:
-          key: password
-          name: vmuser
-</code></pre>
 ]]></content>
     </entry>
 </feed>
