@@ -1,188 +1,97 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="utf-8" >
 
-<head>
-  <meta http-equiv="content-type" content="text/html; charset=utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<meta content="yes" name="apple-mobile-web-app-capable" />
-<meta content="black" name="apple-mobile-web-app-status-bar-style" />
-<meta name="referrer" content="never">
-<meta name="keywords" content="">
-<meta name="description" content="欢迎访问[Old Camel]的个人博客">
-<meta name="author" content="kveln">
 <title>VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标 | Old Camel</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/css/bootstrap.min.css">
-<link href="https://cdn.bootcss.com/font-awesome/5.11.2/css/all.min.css" rel="stylesheet">
-<link href='https://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
-<link
-  href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800'
-  rel='stylesheet' type='text/css'>
-<link rel="alternate" type="application/rss+xml" title="VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标 | Old Camel » Feed"
-  href="https://oldcamel.run/atom.xml">
-<link rel="stylesheet"
-  href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.15.10/build/styles/androidstudio.min.css">
-<link href="https://oldcamel.run/styles/main.css" rel="stylesheet">
-<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+<meta name="description" content="日常开发记录 
+&lt;div&gt;&lt;iframe frameborder=&#34;no&#34; border=&#34;0&#34; marginwidth=&#34;0&#34; marginheight=&#34;0&#34; width=330 height=86 src=&#34;//music.163.com/outchain/player?type=2&amp;id=18611643&amp;auto=1&amp;height=66&#34;&gt;&lt;/iframe&gt;&lt;/div&gt;">
 
-<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets/highlight.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="shortcut icon" href="https://oldcamel.run/favicon.ico?v=1624876732267">
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/css/live2d.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/papercss@1.6.1/dist/paper.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://oldcamel.run/styles/main.css">
 
-<script>hljs.initHighlightingOnLoad();</script>
 
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3TQNJ5FTMN"></script>
-<script>window.dataLayer = window.dataLayer || [];
-    function gtag() {
-      dataLayer.push(arguments)
-    }
-    gtag('js', new Date());
-    gtag('config', 'G-3TQNJ5FTMN');</script>
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
 
-  <meta property="og:description" content="VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标" />
-  <meta property="og:url" content="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/" />
-  <meta property="og:locale" content="zh-CN" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Old Camel" />
-  <!-- <script src="../assets/styles/scripts/tocScript.js"></script> -->
-</head>
 
-<body>
-  <!-- Navigation -->
-  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
-  <div class="container">
-    <a class="navbar-brand" href="https://oldcamel.run">Old Camel</a>
-    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
-      data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
-      aria-label="Toggle navigation">
-      Menu
-      <i class="fas fa-bars"></i>
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
+
+  </head>
+  <body>
+  
+    <nav class="navbar border fixed split-nav">
+  <div class="nav-brand">
+    <h3><a href="https://oldcamel.run">Old Camel</a></h3>
+  </div>
+  <div class="collapsible">
+    <input id="collapsible1" type="checkbox" name="collapsible1">
+    <button>
+      <label for="collapsible1">
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+      </label>
     </button>
-    <div class="collapse navbar-collapse" id="navbarResponsive">
-      <ul class="navbar-nav ml-auto">
+    <div class="collapsible-body">
+      <ul class="inline">
         
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/">首页</a>
-          
-        </li>
+          <li>
+            
+              <a href="/" class="menu">
+                首页
+              </a>
+            
+          </li>
         
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/archives">归档</a>
-          
-        </li>
+          <li>
+            
+              <a href="/archives" class="menu">
+                归档
+              </a>
+            
+          </li>
         
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/tags">标签</a>
-          
-        </li>
+          <li>
+            
+              <a href="/tags" class="menu">
+                标签
+              </a>
+            
+          </li>
         
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/post/about">关于</a>
-          
-        </li>
+          <li>
+            
+              <a href="/post/about" class="menu">
+                关于
+              </a>
+            
+          </li>
         
-        <li class="nav-item">
-          <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1624874703719"
-              action="/search/index.html">
-              <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
-              <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
-            </form>
-          </div>
-        </li>
       </ul>
     </div>
   </div>
 </nav>
-  <!-- Page Header -->
-  <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
-  <div class="container">
-    <a class="navbar-brand" href="https://oldcamel.run">Old Camel</a>
-    <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse"
-      data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false"
-      aria-label="Toggle navigation">
-      Menu
-      <i class="fas fa-bars"></i>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarResponsive">
-      <ul class="navbar-nav ml-auto">
-        
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/">首页</a>
-          
-        </li>
-        
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/archives">归档</a>
-          
-        </li>
-        
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/tags">标签</a>
-          
-        </li>
-        
-        <li class="nav-item">
-          
-          <a class="nav-link" href="/post/about">关于</a>
-          
-        </li>
-        
-        <li class="nav-item">
-          <div class="gridea-search-container">
-            <form id="gridea-search-form" style="position: relative" data-update="1624874703719"
-              action="/search/index.html">
-              <input class="search-input" autocomplete="off" spellcheck="false" name="q" placeholder="搜索文章" />
-              <i class="fas fa-search gt-c-content-color-first" style="position: absolute; top: 9px; left: 10px;"></i>
-            </form>
-          </div>
-        </li>
-      </ul>
-    </div>
-  </div>
-</nav>
-<header class="masthead" style="background-image: url('https://oldcamel.run/media/images/home-bg.jpg')">
-  <div class="overlay"></div>
-  <div class="container">
 
-    <div class="row">
-      <div class="col-lg-8 col-md-10 mx-auto">
-        
-          <!-- 没Title为其他页面Header -->
-          
-            <!-- 没Title并且有headerType为Post：文章Header -->
-            <div class="post-heading">
-              <span class="tags">
-                
-              </span>
-              <h1>VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标</h1>
-              <span class="meta">
-                Posted on
-                2020-12-25，2 min read
-              </span>
-            </div>
-          
-        
-      </div>
-    </div>
-  </div>
-</header>
-  <!-- Post Content -->
-  <article id="post-content-article">
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto post-content-container">
-          
-          <img class="post-feature-header-image" src="https://oldcamel.run/post-images/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao.JPG" alt="封面图">
-          </img>
-          
-          <p>istio中默认带了prometheus,里面包含istio代理的指标，现需要将istio中的指标配置在kube-prometheus中。</p>
+    <div id="top" class="row site">
+      <div class="sm-12 md-8 col">
+        <div class="paper">
+          <article class="article">
+            <h1>VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标</h1>
+            <p class="article-meta">
+              2020-12-25
+              
+            </p>
+            
+              <img src="https://oldcamel.run/post-images/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao.JPG" alt="VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标">
+            
+            <div class="post-content">
+              <p>istio中默认带了prometheus,里面包含istio代理的指标，现需要将istio中的指标配置在kube-prometheus中。</p>
 <h2 id="修改prometheus-k8s-角色权限">修改prometheus-k8s 角色权限</h2>
 <p>修改prometheus-clusterRole.yaml</p>
 <pre><code>apiVersion: rbac.authorization.k8s.io/v1
@@ -259,191 +168,193 @@ spec:
 <h2 id="victoriametrics-中不同集群中的指标获取">VictoriaMetrics 中不同集群中的指标获取</h2>
 <figure data-type="image" tabindex="3"><img src="https://oldcamel.run/post-images/1608882968056.png" alt="" loading="lazy"></figure>
 
-          <div class="toc-container"><ul class="markdownIt-TOC">
-<li>
-<ul>
-<li><a href="#%E4%BF%AE%E6%94%B9prometheus-k8s-%E8%A7%92%E8%89%B2%E6%9D%83%E9%99%90">修改prometheus-k8s 角色权限</a></li>
-<li><a href="#%E9%85%8D%E7%BD%AE%E6%95%B0%E6%8D%AE%E5%B9%B3%E9%9D%A2%E7%9A%84%E6%9C%8D%E5%8A%A1%E7%9B%91%E6%8E%A7">配置数据平面的服务监控</a></li>
-<li><a href="#%E9%85%8D%E7%BD%AE%E6%95%B0%E6%8D%AE%E5%B1%82%E7%9A%84%E6%9C%8D%E5%8A%A1%E7%9B%91%E6%8E%A7">配置数据层的服务监控</a></li>
-<li><a href="#%E6%9F%A5%E7%9C%8B%E6%98%AF%E5%90%A6%E7%94%9F%E6%95%88">查看是否生效</a></li>
-<li><a href="#victoriametrics-%E4%B8%AD%E4%B8%8D%E5%90%8C%E9%9B%86%E7%BE%A4%E4%B8%AD%E7%9A%84%E6%8C%87%E6%A0%87%E8%8E%B7%E5%8F%96">VictoriaMetrics 中不同集群中的指标获取</a></li>
-</ul>
-</li>
-</ul>
-</div>
-          
-          <hr />
-          <p class="next-post">下一篇：
-            <a href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-kube-prometheus-an-zhuang/">
-              <span class="post-title">
-                VictoriaMetrics 汇总多个Prometheus指标（三）kube-prometheus安装&rarr;
-              </span>
-            </a>
-          </p>
-          
-          <div class="comment" style="text-align: center;">
-            
-            <span id="/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/" class="leancloud_visitors"
-              data-flag-title="VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标">
-              <em class="post-meta-item-text">阅读量 </em>
-              <i class="leancloud-visitors-count">loading...</i>
-            </span>
-            
-
-            
-            
-            <script src='https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js'></script>
-
-<style>
-	div#vcomments{
-		width:100%;
-		max-width: 1000px;
-		padding: 2.5%
-	}
-</style>
-
-
-	<div id="vcomments"></div>
-
-<script>
-	new Valine({
-		el: '#vcomments',
-		appId: 'onbNkh3VH7sc2nRqV46lac7B-gzGzoHsz',
-		appKey: 'uiNYrD5ID5uBx8ri4YKzgz7K',
-		avatar: 'monsterid',
-		pageSize: 5,
-		recordIp: true,
-		placeholder: '留下点啥吧',
-		visitor: true,
-	});
-</script>
-
-            
-          </div>
+            </div>
+          </article>
         </div>
-      </div>
-  </article>
-  <!-- Footer -->
-  <footer>
-    <div class="container">
-      <div class="row">
-        <div class="col-lg-8 col-md-10 mx-auto">
-          <ul class="list-inline text-center">
-            
-            
-            <li class="list-inline-item">
-              <a href="https://github.com/Old-Camel" target="_blank">
-                <span class="fa-stack fa-lg">
-                  <i class="fas fa-circle fa-stack-2x"></i>
-                  <i class="fab fa-github fa-stack-1x fa-inverse"></i>
-                </span>
+        <div class="paper" data-aos="fade-in">
+          
+            <div class="next-post">
+              <div class="next">
+                下一篇
+              </div>
+              <a href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-kube-prometheus-an-zhuang/">
+                <h3 class="post-title">
+                  VictoriaMetrics 汇总多个Prometheus指标（三）kube-prometheus安装
+                </h3>
               </a>
+            </div>
+          
+        </div>
+        
+      </div>
+
+      <div class="sm-12 md-4 col sidebar">
+  <div class="paper info-container">
+    <img src="https://oldcamel.run/images/avatar.png?v=1624876732267" class="no-responsive avatar">
+    <div class="text-muted">日常开发记录 
+<div><iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 src="//music.163.com/outchain/player?type=2&id=18611643&auto=1&height=66"></iframe></div></div>
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      最新文章
+    </div>
+    <div class="row">
+      <ul>
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/duo-zu-hu-xi-tong-redis-huan-cun/">多租户系统redis 缓存</a>
             </li>
-            
-              
-            
-              
-            
-              
-            
-              
-            
-              
-            
-              
-            
-              
-              <!-- <li class="list-inline-item">
-              <a href="https://oldcamel.run/atom.xml" target="_blank">
-                <span class="fa-stack fa-lg">
-                  <i class="fas fa-circle fa-stack-2x"></i>
-                  <i class="fas fa-rss fa-stack-1x fa-inverse"></i>
-                </span>
-              </a>
-              </li> -->
-          </ul>
-          <p class="copyright text-muted">Copyright &copy;<span>Old Camel</span><br><a href="https://github.com/getgridea/gridea" class="Themeinfo">Powered by Gridea</a></p>
-        </div>
-      </div>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/postgresql-shu-ju-lei-xing/">PostgreSql 数据类型</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/40-xin-de-kai-duan/">4.0 新的开端</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kubernetes-wen-ti-chu-li-ji-lu/">Kubernetes 问题处理记录</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/flink-sql-shi-xian-cdc-shu-ju-shi-shi-tong-bu-te-shu-chu-li/">Flink Sql 实现CDC数据实时同步特殊处理</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kafka-shi-xian-oracle-de-cdc-shu-ju-shi-shi-bian-geng/">Kafka实现oracle的CDC数据实时变更</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/linux-an-zhuang-fu-wu-qi-zi-yuan-jian-kong-prometheus-yuan-cheng-xie-ru/">linux 安装服务器资源监控 prometheus远程写入</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kafka-shi-xian-sqlserver-de-cdc-shu-ju-shi-shi-bian-geng/">Kafka实现sqlserver的CDC数据实时变更</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/">Kafka开启SASL用户名密码认证</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/victoriametrics-hui-zong-duo-ge-prometheus-zhi-biao-san-du-qu-istio-zhi-biao/">VictoriaMetrics 汇总多个Prometheus指标（四）读取Istio指标</a>
+            </li>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </ul>
     </div>
-   </footer>
-  <!-- Bootstrap core JavaScript -->
-  <script src="https://cdn.bootcss.com/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
-  <!-- <script src="https://oldcamel.run/media/scripts/bootstrap.bundle.min.js"></script> -->
-  <!-- Bootstrap core JavaScript -->
-  <script src="https://cdn.jsdelivr.net/gh/Alanrk/clean-cdn@1.0/scripts/clean-blog.min.js"></script>
-  <!-- <script src="https://oldcamel.run/media/scripts/clean-blog.min.js"></script> -->
-  <script src="//instant.page/3.0.0" type="module" defer integrity="sha384-OeDn4XE77tdHo8pGtE1apMPmAipjoxUQ++eeJa6EtJCfHlvijigWiJpD7VDPWXV1"></script>
-  <style type="text/css">a.back_to_top{text-decoration:none;position:fixed;bottom:40px;right:30px;background:#f0f0f0;height:40px;width:40px;border-radius:50%;line-height:36px;font-size:18px;text-align:center;transition-duration:.5s;transition-propety:background-color;display:none}a.back_to_top span{color:#888}a.back_to_top:hover{cursor:pointer;background:#dfdfdf}a.back_to_top:hover span{color:#555}@media print,screen and(max-width:580px){.back_to_top{display:none!important}}</style>
-<a id="back_to_top" href="#" class="back_to_top">
-  <span>▲</span></a>
-<script>$(document).ready((function(_this) {
-    return function() {
-      var bt;
-      bt = $('#back_to_top');
-      if ($(document).width() > 480) {
-        $(window).scroll(function() {
-          var st;
-          st = $(window).scrollTop();
-          if (st > 30) {
-            return bt.css('display', 'block')
-          } else {
-            return bt.css('display', 'none')
-          }
-        });
-        return bt.click(function() {
-          $('body,html').animate({
-            scrollTop: 0
-          },
-          800);
-          return false
-        })
-      }
-    }
-  })(this));</script>
-  
-  <div id="landlord-parent">
-    <div id="landlord">
-        <div class="message" style="opacity:0"></div>
-        <canvas id="live2d" width="240" height="250" class="live2d"></canvas>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      标签列表
     </div>
+    <div class="row">
+      
+        <a href="https://oldcamel.run/tag/RISUKUMRV/" class="badge secondary">
+          kubernetes
+        </a>
+      
+        <a href="https://oldcamel.run/tag/AfOZDj8Cpm/" class="badge warning">
+          kafka
+        </a>
+      
+        <a href="https://oldcamel.run/tag/L9nUjvZyjL/" class="badge secondary">
+          oracle
+        </a>
+      
+        <a href="https://oldcamel.run/tag/VDLSOs9Sv/" class="badge secondary">
+          k8s
+        </a>
+      
+        <a href="https://oldcamel.run/tag/dITV2_NRd/" class="badge secondary">
+          VictoriaMetrics
+        </a>
+      
+        <a href="https://oldcamel.run/tag/LXP4Ksl29/" class="badge ">
+          prometheus
+        </a>
+      
+        <a href="https://oldcamel.run/tag/0BLo6JsC8/" class="badge secondary">
+          flowable
+        </a>
+      
+        <a href="https://oldcamel.run/tag/KOvNrkSXn/" class="badge warning">
+          beam
+        </a>
+      
+        <a href="https://oldcamel.run/tag/xOjaMtgYtD/" class="badge success">
+          clickhouse
+        </a>
+      
+    </div>
+  </div>
+  <div class="paper">
+     | <a class="rss" href="https://oldcamel.run/atom.xml" target="_blank">RSS</a>
+  </div>
 </div>
 
-<script type="text/javascript">
-    if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
-        //移动端
-        console.log("------ 移动端");
-    } else {
-        console.log("------ PC端 " + navigator.userAgent);
 
-        addScript("https://cdn.jsdelivr.net/gh/850552586/ericamcdn@0.1/js/live2d.js", () => {
-            // 加载完成后再loadlive2d
-            loadlive2d("live2d", "https://oldcamel.run/media/live2d/assets/hijiki.model.json");
-        });
+    </div>
 
-        var home_Path = "https://oldcamel.run/";
-        addScript("https://oldcamel.run/media/live2d/js/message.js", () => { });
-    }
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 
-    // 插入js文件，完成后callback
-    function addScript(jsfile, callback) {
-        var landlord_parent = document.getElementById("landlord-parent");
-        var script = document.createElement("script");
-        script.type = "text/javascript";
-        script.src = jsfile;
-        landlord_parent.appendChild(script);
-        script.onload = script.onreadystatechange = function () {
-            if (!this.readyState || this.readyState === "loaded" || this.readyState === "complete") {
-                script.onload = script.onreadystatechange = null;
-                if (callback && typeof callback == "function") {
-                    callback(); //window[callback]();如果传递字符串过来 调用window['函数名']() 调用方法
-                }
-            }
-        };
-    }
+<script type="application/javascript">
+
+AOS.init();
+
+hljs.initHighlightingOnLoad()
+
 </script>
-  
-  <script src="https://oldcamel.run/media/scripts/tocScript.js"></script>
-</body>
 
+
+
+
+  </body>
 </html>
