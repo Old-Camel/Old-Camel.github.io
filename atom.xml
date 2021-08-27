@@ -2,11 +2,11 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://oldcamel.run</id>
     <title>Old Camel</title>
-    <updated>2021-06-29T01:03:59.911Z</updated>
+    <updated>2021-08-27T06:55:11.428Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://oldcamel.run"/>
     <link rel="self" href="https://oldcamel.run/atom.xml"/>
-    <subtitle>日常开发记录 
+    <subtitle>希望自己可以做喜欢的事，可以多去远方看看 
 &lt;div&gt;&lt;iframe frameborder=&quot;no&quot; border=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot; width=330 height=86 src=&quot;//music.163.com/outchain/player?type=2&amp;id=18611643&amp;auto=1&amp;height=66&quot;&gt;&lt;/iframe&gt;&lt;/div&gt;</subtitle>
     <logo>https://oldcamel.run/images/avatar.png</logo>
     <icon>https://oldcamel.run/favicon.ico</icon>
