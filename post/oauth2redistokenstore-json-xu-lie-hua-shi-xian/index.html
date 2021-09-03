@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Oauth2RedisTokenStore JSON序列化实现 | Old Camel</title>
+<meta name="description" content="希望自己可以做喜欢的事，可以多去远方看看 
+&lt;div&gt;&lt;iframe frameborder=&#34;no&#34; border=&#34;0&#34; marginwidth=&#34;0&#34; marginheight=&#34;0&#34; width=330 height=86 src=&#34;//music.163.com/outchain/player?type=2&amp;id=18611643&amp;auto=1&amp;height=66&#34;&gt;&lt;/iframe&gt;&lt;/div&gt;">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="shortcut icon" href="https://oldcamel.run/favicon.ico?v=1630632169805">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/papercss@1.6.1/dist/paper.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://oldcamel.run/styles/main.css">
+
+
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3TQNJ5FTMN"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-3TQNJ5FTMN');
+</script>
+
+
+  </head>
+  <body>
+  
+    <nav class="navbar border fixed split-nav">
+  <div class="nav-brand">
+    <h3><a href="https://oldcamel.run">Old Camel</a></h3>
+  </div>
+  <div class="collapsible">
+    <input id="collapsible1" type="checkbox" name="collapsible1">
+    <button>
+      <label for="collapsible1">
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+      </label>
+    </button>
+    <div class="collapsible-body">
+      <ul class="inline">
+        
+          <li>
+            
+              <a href="/" class="menu">
+                首页
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/archives" class="menu">
+                归档
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/tags" class="menu">
+                标签
+              </a>
+            
+          </li>
+        
+          <li>
+            
+              <a href="/post/about" class="menu">
+                关于
+              </a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div id="top" class="row site">
+      <div class="sm-12 md-8 col">
+        <div class="paper">
+          <article class="article">
+            <h1>Oauth2RedisTokenStore JSON序列化实现</h1>
+            <p class="article-meta">
+              2021-09-02
+              
+            </p>
+            
+            <div class="post-content">
+              <h1 id="修改默认的java-jdk序列化方式为json格式-使用fastjson目的是为了兼容不同项目使用不同的spring-boot版本">修改默认的java jdk序列化方式为json格式。使用fastjson，目的是为了兼容不同项目使用不同的spring boot版本。</h1>
+<h2 id="yunzaijsonredistokenstore-自定义tokenstore同时设置caffeine缓存">YunzaiJsonRedisTokenStore 自定义TokenStore，同时设置Caffeine缓存</h2>
+<pre><code class="language-java">package com.yunzainfo.cloud.mars.autoconfigure;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.yunzainfo.cloud.mars.common.security.FastjsonRedisTokenStoreSerializationStrategy;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.security.oauth2.common.ExpiringOAuth2RefreshToken;
+import org.springframework.security.oauth2.common.OAuth2AccessToken;
+import org.springframework.security.oauth2.common.OAuth2RefreshToken;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.token.AuthenticationKeyGenerator;
+import org.springframework.security.oauth2.provider.token.DefaultAuthenticationKeyGenerator;
+import org.springframework.security.oauth2.provider.token.TokenStore;
+import org.springframework.security.oauth2.provider.token.store.redis.RedisTokenStoreSerializationStrategy;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.ReflectionUtils;
+
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+
+
+public class YunzaiJsonRedisTokenStore implements TokenStore {
+    private static final String ACCESS = &quot;access:&quot;;
+    private static final String AUTH_TO_ACCESS = &quot;auth_to_access:&quot;;
+    private static final String AUTH = &quot;auth:&quot;;
+    private static final String REFRESH_AUTH = &quot;refresh_auth:&quot;;
+    private static final String ACCESS_TO_REFRESH = &quot;access_to_refresh:&quot;;
+    private static final String REFRESH = &quot;refresh:&quot;;
+    private static final String REFRESH_TO_ACCESS = &quot;refresh_to_access:&quot;;
+    private static final String CLIENT_ID_TO_ACCESS = &quot;client_id_to_access:&quot;;
+    private static final String UNAME_TO_ACCESS = &quot;uname_to_access:&quot;;
+
+    private static final boolean springDataRedis_2_0 = ClassUtils.isPresent(
+            &quot;org.springframework.data.redis.connection.RedisStandaloneConfiguration&quot;,
+            YunzaiJsonRedisTokenStore.class.getClassLoader());
+    private final RedisConnectionFactory connectionFactory;
+    private AuthenticationKeyGenerator authenticationKeyGenerator = new DefaultAuthenticationKeyGenerator();
+    private RedisTokenStoreSerializationStrategy serializationStrategy = new FastjsonRedisTokenStoreSerializationStrategy();
+    private String prefix = &quot;&quot;;
+    private Method redisConnectionSet_2_0;
+    private final static Cache&lt;Object, Object&gt; CACHE;
+    static {
+        CACHE = Caffeine.newBuilder()
+                .expireAfterAccess(30, TimeUnit.MINUTES)
+                .maximumSize(10000).build();
+    }
+    public YunzaiJsonRedisTokenStore(RedisConnectionFactory connectionFactory) {
+        this.connectionFactory = connectionFactory;
+        if (springDataRedis_2_0) {
+            this.loadRedisConnectionMethods_2_0();
+        }
+    }
+
+    public void setAuthenticationKeyGenerator(AuthenticationKeyGenerator authenticationKeyGenerator) {
+        this.authenticationKeyGenerator = authenticationKeyGenerator;
+    }
+
+    public void setSerializationStrategy(RedisTokenStoreSerializationStrategy serializationStrategy) {
+        this.serializationStrategy = serializationStrategy;
+    }
+
+    public void setPrefix(String prefix) {
+        this.prefix = prefix;
+    }
+
+    private void loadRedisConnectionMethods_2_0() {
+        this.redisConnectionSet_2_0 = ReflectionUtils.findMethod(
+                RedisConnection.class, &quot;set&quot;, byte[].class, byte[].class);
+    }
+
+    private RedisConnection getConnection() {
+        return connectionFactory.getConnection();
+    }
+
+    private byte[] serialize(Object object) {
+        return serializationStrategy.serialize(object);
+    }
+
+    private byte[] serializeKey(String object) {
+        return serialize(prefix + object);
+    }
+
+    private OAuth2AccessToken deserializeAccessToken(byte[] bytes) {
+        return serializationStrategy.deserialize(bytes, OAuth2AccessToken.class);
+    }
+
+    private OAuth2Authentication deserializeAuthentication(byte[] bytes) {
+        return serializationStrategy.deserialize(bytes, OAuth2Authentication.class);
+    }
+
+    private OAuth2RefreshToken deserializeRefreshToken(byte[] bytes) {
+        return serializationStrategy.deserialize(bytes, OAuth2RefreshToken.class);
+    }
+
+    private byte[] serialize(String string) {
+        return serializationStrategy.serialize(string);
+    }
+
+    private String deserializeString(byte[] bytes) {
+        return serializationStrategy.deserializeString(bytes);
+    }
+
+    @Override
+    public OAuth2AccessToken getAccessToken(OAuth2Authentication authentication) {
+        String key = authenticationKeyGenerator.extractKey(authentication);
+        String AccessToAccessKey=AUTH_TO_ACCESS + key;
+        return (OAuth2AccessToken) loadCache(AccessToAccessKey, (k) -&gt; {
+            byte[] serializedKey = serializeKey(k);
+            byte[] bytes = null;
+            RedisConnection conn = getConnection();
+            try {
+                bytes = conn.get(serializedKey);
+            } finally {
+                conn.close();
+            }
+            OAuth2AccessToken accessToken = deserializeAccessToken(bytes);
+            if (accessToken != null) {
+                OAuth2Authentication storedAuthentication = readAuthentication(accessToken.getValue());
+                if ((storedAuthentication == null || !key.equals(authenticationKeyGenerator.extractKey(storedAuthentication)))) {
+                    // Keep the stores consistent (maybe the same user is
+                    // represented by this authentication but the details have
+                    // changed)
+                    storeAccessToken(accessToken, authentication);
+                }
+            }
+            return accessToken;
+        });
+    }
+
+    @Override
+    public OAuth2Authentication readAuthentication(OAuth2AccessToken token) {
+        return readAuthentication(token.getValue());
+    }
+
+    @Override
+    public OAuth2Authentication readAuthentication(String token) {
+        String key = AUTH + token;
+        return (OAuth2Authentication) loadCache(key, (k) -&gt; {
+            byte[] bytes = null;
+            RedisConnection conn = getConnection();
+            try {
+                bytes = conn.get(serializeKey(k));
+            } finally {
+                conn.close();
+            }
+            OAuth2Authentication auth = deserializeAuthentication(bytes);
+            return auth;
+        });
+
+    }
+
+    @Override
+    public OAuth2Authentication readAuthenticationForRefreshToken(OAuth2RefreshToken token) {
+        return readAuthenticationForRefreshToken(token.getValue());
+    }
+
+    public OAuth2Authentication readAuthenticationForRefreshToken(String token) {
+        String refreshAuthKey=REFRESH_AUTH + token;
+        return (OAuth2Authentication) loadCache(refreshAuthKey, (k) -&gt; {
+            RedisConnection conn = getConnection();
+            try {
+                byte[] bytes = conn.get(serializeKey(k));
+                OAuth2Authentication auth = deserializeAuthentication(bytes);
+                return auth;
+            } finally {
+                conn.close();
+            }
+        });
+
+    }
+
+    @Override
+    public void storeAccessToken(OAuth2AccessToken token, OAuth2Authentication authentication) {
+        byte[] serializedAccessToken = serialize(token);
+        byte[] serializedAuth = serialize(authentication);
+        byte[] accessKey = serializeKey(ACCESS + token.getValue());
+        byte[] authKey = serializeKey(AUTH + token.getValue());
+        byte[] authToAccessKey = serializeKey(AUTH_TO_ACCESS + authenticationKeyGenerator.extractKey(authentication));
+        byte[] approvalKey = serializeKey(UNAME_TO_ACCESS + getApprovalKey(authentication));
+        byte[] clientId = serializeKey(CLIENT_ID_TO_ACCESS + authentication.getOAuth2Request().getClientId());
+
+        RedisConnection conn = getConnection();
+        try {
+            conn.openPipeline();
+            if (springDataRedis_2_0) {
+                try {
+                    this.redisConnectionSet_2_0.invoke(conn, accessKey, serializedAccessToken);
+                    this.redisConnectionSet_2_0.invoke(conn, authKey, serializedAuth);
+                    this.redisConnectionSet_2_0.invoke(conn, authToAccessKey, serializedAccessToken);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            } else {
+                conn.set(accessKey, serializedAccessToken);
+                conn.set(authKey, serializedAuth);
+                conn.set(authToAccessKey, serializedAccessToken);
+            }
+            if (!authentication.isClientOnly()) {
+                conn.sAdd(approvalKey, serializedAccessToken);
+            }
+            conn.sAdd(clientId, serializedAccessToken);
+            if (token.getExpiration() != null) {
+                int seconds = token.getExpiresIn();
+                conn.expire(accessKey, seconds);
+                conn.expire(authKey, seconds);
+                conn.expire(authToAccessKey, seconds);
+                conn.expire(clientId, seconds);
+                conn.expire(approvalKey, seconds);
+            }
+            OAuth2RefreshToken refreshToken = token.getRefreshToken();
+            if (refreshToken != null &amp;&amp; refreshToken.getValue() != null) {
+                byte[] refresh = serialize(token.getRefreshToken().getValue());
+                byte[] auth = serialize(token.getValue());
+                byte[] refreshToAccessKey = serializeKey(REFRESH_TO_ACCESS + token.getRefreshToken().getValue());
+                byte[] accessToRefreshKey = serializeKey(ACCESS_TO_REFRESH + token.getValue());
+                if (springDataRedis_2_0) {
+                    try {
+                        this.redisConnectionSet_2_0.invoke(conn, refreshToAccessKey, auth);
+                        this.redisConnectionSet_2_0.invoke(conn, accessToRefreshKey, refresh);
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                } else {
+                    conn.set(refreshToAccessKey, auth);
+                    conn.set(accessToRefreshKey, refresh);
+                }
+                if (refreshToken instanceof ExpiringOAuth2RefreshToken) {
+                    ExpiringOAuth2RefreshToken expiringRefreshToken = (ExpiringOAuth2RefreshToken) refreshToken;
+                    Date expiration = expiringRefreshToken.getExpiration();
+                    if (expiration != null) {
+                        int seconds = Long.valueOf((expiration.getTime() - System.currentTimeMillis()) / 1000L)
+                                .intValue();
+                        conn.expire(refreshToAccessKey, seconds);
+                        conn.expire(accessToRefreshKey, seconds);
+                    }
+                }
+                CACHE.put(deserializeString(refreshToAccessKey), token.getValue());
+                CACHE.put(deserializeString(accessToRefreshKey), refreshToken.getValue());
+            }
+            CACHE.put(deserializeString(accessKey), token);
+            CACHE.put(deserializeString(authKey), authentication);
+            CACHE.put(deserializeString(authToAccessKey), token);
+            conn.closePipeline();
+        } finally {
+            conn.close();
+        }
+    }
+
+    private static String getApprovalKey(OAuth2Authentication authentication) {
+        String userName = authentication.getUserAuthentication() == null ? &quot;&quot;
+                : authentication.getUserAuthentication().getName();
+        return getApprovalKey(authentication.getOAuth2Request().getClientId(), userName);
+    }
+
+    private static String getApprovalKey(String clientId, String userName) {
+        return clientId + (userName == null ? &quot;&quot; : &quot;:&quot; + userName);
+    }
+
+    @Override
+    public void removeAccessToken(OAuth2AccessToken accessToken) {
+        removeAccessToken(accessToken.getValue());
+    }
+
+    @Override
+    public OAuth2AccessToken readAccessToken(String tokenValue) {
+        String accessTokenKey = ACCESS + tokenValue;
+        return (OAuth2AccessToken) loadCache(accessTokenKey, (k) -&gt; {
+            byte[] key = serializeKey(k);
+            byte[] bytes = null;
+            RedisConnection conn = getConnection();
+            try {
+                bytes = conn.get(key);
+            } finally {
+                conn.close();
+            }
+            OAuth2AccessToken accessToken = deserializeAccessToken(bytes);
+            return accessToken;
+        });
+    }
+
+    public void removeAccessToken(String tokenValue) {
+        byte[] accessKey = serializeKey(ACCESS + tokenValue);
+        byte[] authKey = serializeKey(AUTH + tokenValue);
+        byte[] accessToRefreshKey = serializeKey(ACCESS_TO_REFRESH + tokenValue);
+        RedisConnection conn = getConnection();
+        try {
+            conn.openPipeline();
+            conn.get(accessKey);
+            conn.get(authKey);
+            conn.del(accessKey);
+            conn.del(accessToRefreshKey);
+            // Don't remove the refresh token - it's up to the caller to do that
+            conn.del(authKey);
+            List&lt;Object&gt; results = conn.closePipeline();
+            byte[] access = (byte[]) results.get(0);
+            byte[] auth = (byte[]) results.get(1);
+            List&lt;String&gt; keys = new ArrayList&lt;&gt;(6);
+            keys.add(deserializeString(accessKey));
+            keys.add(deserializeString(authKey));
+            keys.add(deserializeString(accessToRefreshKey));
+            CACHE.invalidateAll(keys);
+            OAuth2Authentication authentication = deserializeAuthentication(auth);
+            if (authentication != null) {
+                String key = authenticationKeyGenerator.extractKey(authentication);
+                byte[] authToAccessKey = serializeKey(AUTH_TO_ACCESS + key);
+                byte[] unameKey = serializeKey(UNAME_TO_ACCESS + getApprovalKey(authentication));
+                byte[] clientId = serializeKey(CLIENT_ID_TO_ACCESS + authentication.getOAuth2Request().getClientId());
+                conn.openPipeline();
+                conn.del(authToAccessKey);
+                conn.sRem(unameKey, access);
+                conn.sRem(clientId, access);
+                conn.del(serialize(ACCESS + key));
+                conn.closePipeline();
+                CACHE.invalidate(deserializeString(authToAccessKey));
+                CACHE.invalidate(ACCESS + key);
+            }
+        } finally {
+            conn.close();
+        }
+    }
+
+    @Override
+    public void storeRefreshToken(OAuth2RefreshToken refreshToken, OAuth2Authentication authentication) {
+        byte[] refreshKey = serializeKey(REFRESH + refreshToken.getValue());
+        byte[] refreshAuthKey = serializeKey(REFRESH_AUTH + refreshToken.getValue());
+        byte[] serializedRefreshToken = serialize(refreshToken);
+        RedisConnection conn = getConnection();
+        try {
+            conn.openPipeline();
+            if (springDataRedis_2_0) {
+                try {
+                    this.redisConnectionSet_2_0.invoke(conn, refreshKey, serializedRefreshToken);
+                    this.redisConnectionSet_2_0.invoke(conn, refreshAuthKey, serialize(authentication));
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            } else {
+                conn.set(refreshKey, serializedRefreshToken);
+                conn.set(refreshAuthKey, serialize(authentication));
+            }
+            if (refreshToken instanceof ExpiringOAuth2RefreshToken) {
+                ExpiringOAuth2RefreshToken expiringRefreshToken = (ExpiringOAuth2RefreshToken) refreshToken;
+                Date expiration = expiringRefreshToken.getExpiration();
+                if (expiration != null) {
+                    int seconds = Long.valueOf((expiration.getTime() - System.currentTimeMillis()) / 1000L)
+                            .intValue();
+                    conn.expire(refreshKey, seconds);
+                    conn.expire(refreshAuthKey, seconds);
+                }
+            }
+            CACHE.put(deserializeString(refreshKey), refreshToken);
+            CACHE.put(deserializeString(refreshAuthKey), authentication);
+            conn.closePipeline();
+        } finally {
+            conn.close();
+        }
+    }
+
+    @Override
+    public OAuth2RefreshToken readRefreshToken(String tokenValue) {
+        String refreshTokenKey=REFRESH + tokenValue;
+        return (OAuth2RefreshToken) loadCache(refreshTokenKey, (k) -&gt; {
+            byte[] key = serializeKey(k);
+            byte[] bytes = null;
+            RedisConnection conn = getConnection();
+            try {
+                bytes = conn.get(key);
+            } finally {
+                conn.close();
+            }
+            OAuth2RefreshToken refreshToken = deserializeRefreshToken(bytes);
+            return refreshToken;
+        });
+
+
+    }
+
+    @Override
+    public void removeRefreshToken(OAuth2RefreshToken refreshToken) {
+        removeRefreshToken(refreshToken.getValue());
+    }
+
+    public void removeRefreshToken(String tokenValue) {
+        byte[] refreshKey = serializeKey(REFRESH + tokenValue);
+        byte[] refreshAuthKey = serializeKey(REFRESH_AUTH + tokenValue);
+        byte[] refresh2AccessKey = serializeKey(REFRESH_TO_ACCESS + tokenValue);
+        byte[] access2RefreshKey = serializeKey(ACCESS_TO_REFRESH + tokenValue);
+        RedisConnection conn = getConnection();
+        try {
+            conn.openPipeline();
+            conn.del(refreshKey);
+            conn.del(refreshAuthKey);
+            conn.del(refresh2AccessKey);
+            conn.del(access2RefreshKey);
+            conn.closePipeline();
+        } finally {
+            conn.close();
+        }
+        List&lt;String&gt; keys = new ArrayList&lt;&gt;(7);
+        keys.add(deserializeString(refreshKey));
+        keys.add(deserializeString(refreshAuthKey));
+        keys.add(deserializeString(refresh2AccessKey));
+        keys.add(deserializeString(access2RefreshKey));
+        CACHE.invalidateAll(keys);
+    }
+
+    private &lt;T&gt; Object loadCache(String key, Function&lt;String, ? extends T&gt; loadData) {
+        try {
+            Object value = CACHE.getIfPresent(key);
+            if (value == null) {
+                value = loadData.apply(key);
+                if (value != null) {
+                    CACHE.put(key, value);
+                }
+            }
+            return value;
+        } catch (Exception e) {
+            throw new RuntimeException(&quot;YunzaiJsonRedisTokenStore.loadCache从缓存中加载数据发生错误&quot;, e);
+        }
+    }
+    @Override
+    public void removeAccessTokenUsingRefreshToken(OAuth2RefreshToken refreshToken) {
+        removeAccessTokenUsingRefreshToken(refreshToken.getValue());
+    }
+
+    private void removeAccessTokenUsingRefreshToken(String refreshToken) {
+        byte[] key = serializeKey(REFRESH_TO_ACCESS + refreshToken);
+        List&lt;Object&gt; results = null;
+        RedisConnection conn = getConnection();
+        try {
+            conn.openPipeline();
+            conn.get(key);
+            conn.del(key);
+            results = conn.closePipeline();
+        } finally {
+            conn.close();
+        }
+        if (results == null) {
+            return;
+        }
+        byte[] bytes = (byte[]) results.get(0);
+        String accessToken = deserializeString(bytes);
+        if (accessToken != null) {
+            removeAccessToken(accessToken);
+        }
+        CACHE.invalidate(deserializeString(key));
+
+    }
+
+    private List&lt;byte[]&gt; getByteLists(byte[] approvalKey, RedisConnection conn) {
+        List&lt;byte[]&gt; byteList;
+        Long size = conn.sCard(approvalKey);
+        byteList = new ArrayList&lt;byte[]&gt;(size.intValue());
+        Cursor&lt;byte[]&gt; cursor = conn.sScan(approvalKey, ScanOptions.NONE);
+        while(cursor.hasNext()) {
+            byteList.add(cursor.next());
+        }
+        return byteList;
+    }
+
+    @Override
+    public Collection&lt;OAuth2AccessToken&gt; findTokensByClientIdAndUserName(String clientId, String userName) {
+        byte[] approvalKey = serializeKey(UNAME_TO_ACCESS + getApprovalKey(clientId, userName));
+        List&lt;byte[]&gt; byteList = null;
+        RedisConnection conn = getConnection();
+        try {
+            byteList = getByteLists(approvalKey, conn);
+        } finally {
+            conn.close();
+        }
+        if (byteList == null || byteList.size() == 0) {
+            return Collections.&lt;OAuth2AccessToken&gt; emptySet();
+        }
+        List&lt;OAuth2AccessToken&gt; accessTokens = new ArrayList&lt;OAuth2AccessToken&gt;(byteList.size());
+        for (byte[] bytes : byteList) {
+            OAuth2AccessToken accessToken = deserializeAccessToken(bytes);
+            accessTokens.add(accessToken);
+        }
+        return Collections.&lt;OAuth2AccessToken&gt; unmodifiableCollection(accessTokens);
+    }
+
+    @Override
+    public Collection&lt;OAuth2AccessToken&gt; findTokensByClientId(String clientId) {
+        byte[] key = serializeKey(CLIENT_ID_TO_ACCESS + clientId);
+        List&lt;byte[]&gt; byteList = null;
+        RedisConnection conn = getConnection();
+        try {
+            byteList = getByteLists(key, conn);
+        } finally {
+            conn.close();
+        }
+        if (byteList == null || byteList.size() == 0) {
+            return Collections.&lt;OAuth2AccessToken&gt; emptySet();
+        }
+        List&lt;OAuth2AccessToken&gt; accessTokens = new ArrayList&lt;OAuth2AccessToken&gt;(byteList.size());
+        for (byte[] bytes : byteList) {
+            OAuth2AccessToken accessToken = deserializeAccessToken(bytes);
+            accessTokens.add(accessToken);
+        }
+        return Collections.&lt;OAuth2AccessToken&gt; unmodifiableCollection(accessTokens);
+    }
+
+
+}
+
+</code></pre>
+<h2 id="fastjsonredistokenstoreserializationstrategy-json序列化认证授权信息">FastjsonRedisTokenStoreSerializationStrategy json序列化认证授权信息</h2>
+<pre><code class="language-java">
+import cn.hutool.core.util.ReflectUtil;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.parser.ParserConfig;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.fastjson.util.IOUtils;
+import com.alibaba.fastjson.util.TypeUtils;
+import com.google.common.base.Preconditions;
+import org.apache.commons.lang.SerializationException;
+import org.springframework.security.oauth2.common.DefaultOAuth2RefreshToken;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
+import org.springframework.security.oauth2.provider.token.store.redis.RedisTokenStoreSerializationStrategy;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class FastjsonRedisTokenStoreSerializationStrategy implements RedisTokenStoreSerializationStrategy {
+    private static ParserConfig config = new ParserConfig();
+    static {
+        init();
+    }
+
+    protected static void init() {
+        //自定义oauth2序列化：DefaultOAuth2RefreshToken 没有setValue方法，会导致JSON序列化为null
+        config.setAutoTypeSupport(true);//开启AutoType
+        //自定义DefaultOauth2RefreshTokenSerializer反序列化
+        config.putDeserializer(DefaultOAuth2RefreshToken.class, new DefaultOauth2RefreshTokenSerializer());
+        //自定义OAuth2Authentication反序列化
+        config.putDeserializer(OAuth2Authentication.class, new OAuth2AuthenticationSerializer());
+        //添加autotype白名单
+        config.addAccept(&quot;org.springframework.security.oauth2.provider.&quot;);
+        config.addAccept(&quot;org.springframework.security.oauth2.provider.client&quot;);
+
+        TypeUtils.loadClass(&quot;org.springframework.security.oauth2.provider.OAuth2Authentication&quot;);
+        TypeUtils.loadClass(&quot;org.springframework.security.oauth2.provider.client.BaseClientDetails&quot;);
+
+        config.addAccept(&quot;org.springframework.security.oauth2.common.&quot;);
+        TypeUtils.loadClass(&quot;org.springframework.security.oauth2.common.DefaultOAuth2AccessToken&quot;);
+        TypeUtils.loadClass(&quot;org.springframework.security.oauth2.common.DefaultExpiringOAuth2RefreshToken&quot;);
+
+        config.addAccept(&quot;com.yunzainfo.cloud.mars.common.security.YzUser&quot;);
+        config.addAccept(&quot;com.yunzainfo.cloud.mars.common.security.User&quot;);
+        TypeUtils.loadClass(&quot;com.yunzainfo.cloud.mars.common.security.YzUser&quot;);
+        TypeUtils.loadClass(&quot;com.yunzainfo.cloud.mars.common.security.User&quot;);
+
+        config.addAccept(&quot;org.springframework.security.web.authentication.preauth&quot;);
+        TypeUtils.loadClass(&quot;org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken&quot;);
+        config.addAccept(&quot;java.util.Collections$UnmodifiableMap&quot;);
+    }
+
+    @Override
+    public &lt;T&gt; T deserialize(byte[] bytes, Class&lt;T&gt; aClass) {
+        Preconditions.checkArgument(aClass != null,
+                &quot;clazz can't be null&quot;);
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+
+        try {
+            return JSON.parseObject(new String(bytes, IOUtils.UTF8), aClass, config);
+        } catch (Exception ex) {
+            throw new SerializationException(&quot;Could not serialize: &quot; + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public String deserializeString(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+        return new String(bytes, IOUtils.UTF8);
+    }
+
+    @Override
+    public byte[] serialize(Object o) {
+        if (o == null) {
+            return new byte[0];
+        }
+        if(o instanceof OAuth2Authentication){
+            OAuth2Authentication oAuth2Authentication=(OAuth2Authentication)o;
+            OAuth2Request oAuth2Request = oAuth2Authentication.getOAuth2Request();
+            Map&lt;String, String&gt; requestParameters = oAuth2Request.getRequestParameters();
+            HashMap&lt;String, String&gt; newRequestParamters = new HashMap&lt;&gt;();
+            newRequestParamters.putAll(requestParameters);
+            ReflectUtil.setFieldValue(oAuth2Request,&quot;requestParameters&quot;,newRequestParamters);
+        }
+        try {
+            byte[] bytes = JSON.toJSONBytes(o, SerializerFeature.WriteClassName,
+                    SerializerFeature.DisableCircularReferenceDetect);
+            String save = new String(bytes);
+            String replace = save.replaceAll(&quot;com.yunzainfo.cloud.mars.common.security.YzUser&quot;, &quot;com.yunzainfo.cloud.mars.common.security.User&quot;);
+            return replace.getBytes(StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            throw new SerializationException(&quot;Could not serialize: &quot; + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public byte[] serialize(String data) {
+        if (data == null || data.length() == 0) {
+            return new byte[0];
+        }
+
+        return data.getBytes(Charset.forName(&quot;utf-8&quot;));
+    }
+
+}
+
+</code></pre>
+<h2 id="defaultoauth2refreshtokenserializer-自定义默认的刷新token序列化工具类">DefaultOauth2RefreshTokenSerializer 自定义默认的刷新token序列化工具类</h2>
+<pre><code class="language-java">
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.DefaultJSONParser;
+import com.alibaba.fastjson.parser.deserializer.ObjectDeserializer;
+import org.springframework.security.oauth2.common.DefaultOAuth2RefreshToken;
+
+import java.lang.reflect.Type;
+
+public class DefaultOauth2RefreshTokenSerializer implements ObjectDeserializer {
+
+    @Override
+    public &lt;T&gt; T deserialze(DefaultJSONParser parser, Type type, Object fieldName) {
+        if (type == DefaultOAuth2RefreshToken.class) {
+            JSONObject jsonObject = parser.parseObject();
+            String tokenId = jsonObject.getString(&quot;value&quot;);
+            DefaultOAuth2RefreshToken refreshToken = new DefaultOAuth2RefreshToken(tokenId);
+            return (T) refreshToken;
+        }
+        return null;
+    }
+
+    @Override
+    public int getFastMatchToken() {
+        return 0;
+    }
+
+}
+</code></pre>
+<h2 id="oauth2authenticationserializer-自定义oauth2认证序列化工具类">OAuth2AuthenticationSerializer 自定义OAuth2认证序列化工具类</h2>
+<pre><code class="language-java">package com.yunzainfo.cloud.mars.common.security;
+
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
+import com.alibaba.fastjson.parser.DefaultJSONParser;
+import com.alibaba.fastjson.parser.Feature;
+import com.alibaba.fastjson.parser.deserializer.ObjectDeserializer;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
+import org.springframework.security.oauth2.provider.TokenRequest;
+
+import java.io.Serializable;
+import java.lang.reflect.Type;
+import java.util.*;
+
+
+public class OAuth2AuthenticationSerializer implements ObjectDeserializer {
+
+    @Override
+    public &lt;T&gt; T deserialze(DefaultJSONParser parser, Type type, Object fieldName) {
+        if (type == OAuth2Authentication.class) {
+
+            try {
+                Object o = parse(parser);
+                if (o == null) {
+                    return null;
+                } else if (o instanceof OAuth2Authentication) {
+                    return (T) o;
+                }
+
+                JSONObject jsonObject = (JSONObject) o;
+                OAuth2Request request = parseOAuth2Request(jsonObject);
+
+                Object autoType = jsonObject.get(&quot;userAuthentication&quot;);
+                Authentication userAuthentication = jsonObject.getObject(&quot;userAuthentication&quot;, (Type) autoType.getClass());
+                if (userAuthentication instanceof UsernamePasswordAuthenticationToken) {
+                    //转换user=&gt;&gt;YzUser(YzUser反序列化会失败，在存储的时候将YzUser转成了User，所以要在这里转回来，否则SecutiryUtils的静态方法会抛类型转换异常)
+                    User user = (User) (userAuthentication).getPrincipal();
+                    List menu = user.getMenu();
+                    Collections.sort(menu);
+                    sortMenuByDisplayIndex(menu);//排顺序
+                    YzUser yzUser = new YzUser(user.getUsername(), user.getRealname(), &quot;此方法不提供密码&quot;, user.getUserId(), user.getUserCode(), user.getDeptId(), user.getDeptName(), menu, user.getRoles(), user.getUserType(), user.getAuthorities(), user.getAvatarId(), user.getTenantId());
+                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(yzUser, yzUser.getPassword(), yzUser.getAuthorities());
+                    usernamePasswordAuthenticationToken.eraseCredentials();
+                    userAuthentication = usernamePasswordAuthenticationToken;
+                }
+                return (T) new OAuth2Authentication(request, userAuthentication);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+        return null;
+    }
+    private void sortMenuByDisplayIndex(Collection&lt;Menu&gt; menus) {
+        for (Menu menu : menus) {
+            Set&lt;Menu&gt; children = menu.getChildren();
+            if (children != null &amp;&amp; children.size() != 0) {
+                Set&lt;Menu&gt; newSet = new TreeSet&lt;&gt;();
+                newSet.addAll(children);
+                menu.setChildren(newSet);
+                sortMenuByDisplayIndex(newSet);
+            }
+        }
+    }
+
+    private OAuth2Request parseOAuth2Request(JSONObject jsonObject) {
+        JSONObject json = jsonObject.getObject(&quot;oAuth2Request&quot;, JSONObject.class);
+        Map&lt;String, String&gt; requestParameters = json.getObject(&quot;requestParameters&quot;, Map.class);
+        String clientId = json.getString(&quot;clientId&quot;);
+        String grantType = json.getString(&quot;grantType&quot;);
+        String redirectUri = json.getString(&quot;redirectUri&quot;);
+        Boolean approved = json.getBoolean(&quot;approved&quot;);
+        Set&lt;String&gt; responseTypes = json
+                .getObject(&quot;responseTypes&quot;, new TypeReference&lt;HashSet&lt;String&gt;&gt;() {
+                });
+        Set&lt;String&gt; scope = json.getObject(&quot;scope&quot;, new TypeReference&lt;HashSet&lt;String&gt;&gt;() {
+        });
+        Set&lt;String&gt; authorities = json.getObject(&quot;authorities&quot;, new TypeReference&lt;HashSet&lt;String&gt;&gt;() {
+        });
+        Set&lt;GrantedAuthority&gt; grantedAuthorities = new HashSet&lt;&gt;(0);
+        if (authorities != null &amp;&amp; !authorities.isEmpty()) {
+            authorities.forEach(s -&gt; grantedAuthorities.add(new SimpleGrantedAuthority(s)));
+        }
+        Set&lt;String&gt; resourceIds = json
+                .getObject(&quot;resourceIds&quot;, new TypeReference&lt;HashSet&lt;String&gt;&gt;() {
+                });
+        Map&lt;String, Serializable&gt; extensions = json
+                .getObject(&quot;extensions&quot;, new TypeReference&lt;HashMap&lt;String, Serializable&gt;&gt;() {
+                });
+
+        OAuth2Request request = new OAuth2Request(requestParameters, clientId,
+                grantedAuthorities, approved, scope, resourceIds, redirectUri, responseTypes, extensions);
+        TokenRequest tokenRequest = new TokenRequest(requestParameters, clientId, scope, grantType);
+        request.refresh(tokenRequest);
+        return request;
+    }
+
+
+    @Override
+    public int getFastMatchToken() {
+        return 0;
+    }
+
+    private Object parse(DefaultJSONParser parse) {
+        JSONObject object = new JSONObject(parse.lexer.isEnabled(Feature.OrderedField));
+        Object parsedObject = parse.parseObject((Map) object);
+        if (parsedObject instanceof JSONObject) {
+            return (JSONObject) parsedObject;
+        } else if (parsedObject instanceof OAuth2Authentication) {
+            return parsedObject;
+        } else {
+            return parsedObject == null ? null : new JSONObject((Map) parsedObject);
+        }
+    }
+
+}
+
+</code></pre>
+
+            </div>
+          </article>
+        </div>
+        <div class="paper" data-aos="fade-in">
+          
+            <div class="next-post">
+              <div class="next">
+                下一篇
+              </div>
+              <a href="https://oldcamel.run/post/duo-zu-hu-xi-tong-redis-huan-cun/">
+                <h3 class="post-title">
+                  多租户系统redis 缓存
+                </h3>
+              </a>
+            </div>
+          
+        </div>
+        
+      </div>
+
+      <div class="sm-12 md-4 col sidebar">
+  <div class="paper info-container">
+    <img src="https://oldcamel.run/images/avatar.png?v=1630632169805" class="no-responsive avatar">
+    <div class="text-muted">希望自己可以做喜欢的事，可以多去远方看看 
+<div><iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 src="//music.163.com/outchain/player?type=2&id=18611643&auto=1&height=66"></iframe></div></div>
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      最新文章
+    </div>
+    <div class="row">
+      <ul>
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/oauth2redistokenstore-json-xu-lie-hua-shi-xian/">Oauth2RedisTokenStore JSON序列化实现</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/duo-zu-hu-xi-tong-redis-huan-cun/">多租户系统redis 缓存</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/postgresql-shu-ju-lei-xing/">PostgreSql 数据类型</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/40-xin-de-kai-duan/">4.0 新的开端</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kubernetes-wen-ti-chu-li-ji-lu/">Kubernetes 问题处理记录</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/flink-sql-shi-xian-cdc-shu-ju-shi-shi-tong-bu-te-shu-chu-li/">Flink Sql 实现CDC数据实时同步特殊处理</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kafka-shi-xian-oracle-de-cdc-shu-ju-shi-shi-bian-geng/">Kafka实现oracle的CDC数据实时变更</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/linux-an-zhuang-fu-wu-qi-zi-yuan-jian-kong-prometheus-yuan-cheng-xie-ru/">linux 安装服务器资源监控 prometheus远程写入</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kafka-shi-xian-sqlserver-de-cdc-shu-ju-shi-shi-bian-geng/">Kafka实现sqlserver的CDC数据实时变更</a>
+            </li>
+          
+        
+          
+            <li>
+              <a href="https://oldcamel.run/post/kafka-kai-qi-sasl-yong-hu-ming-mi-ma-ren-zheng/">Kafka开启SASL用户名密码认证</a>
+            </li>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </ul>
+    </div>
+  </div>
+  <div class="paper">
+    <div class="sidebar-title">
+      标签列表
+    </div>
+    <div class="row">
+      
+        <a href="https://oldcamel.run/tag/RISUKUMRV/" class="badge secondary">
+          kubernetes
+        </a>
+      
+        <a href="https://oldcamel.run/tag/AfOZDj8Cpm/" class="badge success">
+          kafka
+        </a>
+      
+        <a href="https://oldcamel.run/tag/L9nUjvZyjL/" class="badge warning">
+          oracle
+        </a>
+      
+        <a href="https://oldcamel.run/tag/VDLSOs9Sv/" class="badge secondary">
+          k8s
+        </a>
+      
+        <a href="https://oldcamel.run/tag/dITV2_NRd/" class="badge ">
+          VictoriaMetrics
+        </a>
+      
+        <a href="https://oldcamel.run/tag/LXP4Ksl29/" class="badge ">
+          prometheus
+        </a>
+      
+        <a href="https://oldcamel.run/tag/0BLo6JsC8/" class="badge secondary">
+          flowable
+        </a>
+      
+        <a href="https://oldcamel.run/tag/KOvNrkSXn/" class="badge success">
+          beam
+        </a>
+      
+        <a href="https://oldcamel.run/tag/xOjaMtgYtD/" class="badge success">
+          clickhouse
+        </a>
+      
+    </div>
+  </div>
+  <div class="paper">
+    振衣笑赴千尘浪，濯足醉踏万里流 | <a class="rss" href="https://oldcamel.run/atom.xml" target="_blank">RSS</a>
+  </div>
+</div>
+
+
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+
+<script type="application/javascript">
+
+AOS.init();
+
+hljs.initHighlightingOnLoad()
+
+</script>
+
+
+
+
+  </body>
+</html>
