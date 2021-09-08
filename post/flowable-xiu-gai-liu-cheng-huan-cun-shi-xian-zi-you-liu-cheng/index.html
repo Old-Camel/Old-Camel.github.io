@@ -8,7 +8,7 @@
 &lt;div&gt;&lt;iframe frameborder=&#34;no&#34; border=&#34;0&#34; marginwidth=&#34;0&#34; marginheight=&#34;0&#34; width=330 height=86 src=&#34;//music.163.com/outchain/player?type=2&amp;id=18611643&amp;auto=1&amp;height=66&#34;&gt;&lt;/iframe&gt;&lt;/div&gt;">
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<link rel="shortcut icon" href="https://oldcamel.run/favicon.ico?v=1630632169805">
+<link rel="shortcut icon" href="https://oldcamel.run/favicon.ico?v=1631072065076">
 
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
 <link rel="stylesheet" href="https://unpkg.com/papercss@1.6.1/dist/paper.min.css" />
@@ -326,6 +326,412 @@ public class FreeProcessCaCheImpl implements FreeProcessCaChe {
     }
 }
 </code></pre>
+<h2 id="定义获取缓存命令类">定义获取缓存命令类</h2>
+<pre><code class="language-java">import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.engine.impl.persistence.deploy.DeploymentManager;
+import org.flowable.engine.impl.persistence.deploy.ProcessDefinitionCacheEntry;
+import org.flowable.engine.impl.util.CommandContextUtil;
+
+/**
+ * 
+ *从缓存中获取ProcessDefinitionCacheEntry
+ */
+public class GetProcessDefinitionCacheEntryCmd implements Command&lt;ProcessDefinitionCacheEntry&gt; {
+	protected String processDefinitionId;
+
+	public GetProcessDefinitionCacheEntryCmd(String processDefinitionId) {
+		this.processDefinitionId = processDefinitionId;
+	}
+
+	@Override
+	public ProcessDefinitionCacheEntry execute(CommandContext commandContext) {
+		DeploymentManager deploymentManager = CommandContextUtil.getProcessEngineConfiguration().getDeploymentManager();
+		ProcessDefinitionCacheEntry processDefinitionCacheEntry = deploymentManager.getProcessDefinitionCache()
+				.get(processDefinitionId);
+		return processDefinitionCacheEntry;
+	}
+
+}
+
+</code></pre>
+<h2 id="添加节点命令类">添加节点命令类</h2>
+<pre><code class="language-java">package com.yunzainfo.cloud.flowable.cmd;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.beust.jcommander.internal.Lists;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.yunzainfo.cloud.auth.security.SecurityUtils;
+import com.yunzainfo.cloud.common.exception.CheckErrorException;
+import com.yunzainfo.cloud.common.util.SpringUtil;
+import com.yunzainfo.cloud.flowable.cache.FreeProcessCaChe;
+import com.yunzainfo.cloud.flowable.cache.CustomProcessDefinitionCacheEntry;
+import com.yunzainfo.cloud.flowable.config.ProcessThreadLocal;
+import com.yunzainfo.cloud.flowable.converter.CustomBpmnJsonConverter;
+import com.yunzainfo.cloud.flowable.entity.ProcessRecord;
+import com.yunzainfo.cloud.flowable.pojo.TaskModel;
+import com.yunzainfo.cloud.flowable.repository.ProcessRecordRepository;
+import com.yunzainfo.cloud.flowable.util.FlowUtils;
+import com.yunzainfo.cloud.flowable.util.GenerateActivity;
+import lombok.Builder;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.flowable.bpmn.model.*;
+import org.flowable.bpmn.model.Process;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.engine.ManagementService;
+import org.flowable.engine.RuntimeService;
+import org.flowable.engine.TaskService;
+import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.flowable.engine.impl.persistence.deploy.ProcessDefinitionCacheEntry;
+import org.flowable.engine.impl.util.CommandContextUtil;
+import org.flowable.engine.impl.util.ProcessDefinitionUtil;
+import org.flowable.idm.api.IdmIdentityService;
+import org.flowable.idm.api.User;
+
+import javax.swing.*;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Created by IntelliJ IDEA
+ * TODO: TODO
+ * author: 徐成
+ * Date: 2019/7/23
+ * Time: 4:30 PM
+ * Email: old_camel@163.com
+ */
+@Builder
+public class FreeProcessAddNodeCommand implements Command&lt;Void&gt; {
+    /**
+     * 执行实例id
+     */
+    private String executionId;
+    /**
+     * 备注信息
+     */
+    private String message;
+    /**
+     * 任务节点
+     */
+    private String taskId;
+    /**
+     * 开始节点
+     */
+    private String firstNodeId;
+    /**
+     * 属性参考节点
+     */
+    private String propertiesNodeId;
+    /**
+     * 结束节点
+     */
+    private String lastNodeId;
+    /**
+     * 流程实例ID
+     */
+    private String processInstanceId;
+    /**
+     * 流程定义ID
+     */
+    private String processDefinitionId;
+    /**
+     * 添加的节点
+     */
+    private List&lt;TaskModel&gt; taskModelList;
+    /**
+     * 添加的网关
+     */
+    private List&lt;ParallelGateway&gt; parallelGatewayList;
+
+    /**
+     * 是否跳转
+     */
+    private boolean jump;
+    /**
+     * 当前节点id
+     */
+    private String currentActivityId;
+    /**
+     * 目标节点id
+     */
+    private String newActivityId;
+
+    @Override
+    public Void execute(CommandContext commandContext) {
+        ManagementService managementService = org.flowable.engine.impl.util.CommandContextUtil.getProcessEngineConfiguration().getManagementService();
+        TaskService taskService = org.flowable.engine.impl.util.CommandContextUtil.getProcessEngineConfiguration().getTaskService();
+        CustomBpmnJsonConverter customBpmnJsonConverter = new CustomBpmnJsonConverter();
+        ProcessDefinitionCacheEntry processDefinitionCacheEntry = managementService.executeCommand(new GetProcessDefinitionCacheEntryCmd(processDefinitionId));
+        FreeProcessCaChe caChe = SpringUtil.getBean(FreeProcessCaChe.class);
+        BpmnModel bpmnModel = processDefinitionCacheEntry.getBpmnModel();
+        Process process = bpmnModel.getMainProcess();
+        //校验是不是临近节点
+        boolean validation = validation(firstNodeId, lastNodeId, process);
+        if (validation) {
+            //获取缓存操作类
+            if (taskModelList == null || taskModelList.isEmpty()) {
+                throw new CheckErrorException(&quot;添加节点必须设置值&quot;);
+            }
+            ProcessEngineConfigurationImpl processEngine = CommandContextUtil.getProcessEngineConfiguration((commandContext));
+            List&lt;FlowNode&gt; flowNodes = Lists.newArrayList();
+            //如果有并行网关就添加并行网关的第一个
+            if (this.parallelGatewayList != null) {
+                ParallelGateway parallelGateway = this.parallelGatewayList.get(0);
+                GraphicInfo graphicInfo = new GraphicInfo();
+                graphicInfo.setX(100);
+                graphicInfo.setY(100);
+                graphicInfo.setHeight(80);
+                graphicInfo.setWidth(100);
+                flowNodes.add(parallelGateway);
+                process.addFlowElement(parallelGateway);
+                bpmnModel.addGraphicInfo(parallelGateway.getId(), graphicInfo);
+                bpmnModel.addFlowGraphicInfoList(parallelGateway.getId(), Arrays.asList(graphicInfo));
+            }
+            //如果有并行网关就添加并行网关的最后一个
+            if (this.parallelGatewayList != null) {
+                ParallelGateway parallelGateway = this.parallelGatewayList.get(1);
+                GraphicInfo graphicInfo = new GraphicInfo();
+                graphicInfo.setX(100);
+                graphicInfo.setY(100);
+                graphicInfo.setHeight(80);
+                graphicInfo.setWidth(100);
+                flowNodes.add(parallelGateway);
+                process.addFlowElement(parallelGateway);
+                bpmnModel.addGraphicInfo(parallelGateway.getId(), graphicInfo);
+                bpmnModel.addFlowGraphicInfoList(parallelGateway.getId(), Arrays.asList(graphicInfo));
+            }
+            // 批量生成UserTask
+            for (TaskModel taskModel : taskModelList) {
+                GraphicInfo graphicInfo = new GraphicInfo();
+                graphicInfo.setX(100);
+                graphicInfo.setY(100);
+                graphicInfo.setHeight(80);
+                graphicInfo.setWidth(100);
+                UserTask userTask = GenerateActivity.transformation(taskModel, processEngine);
+                //设置userTask配置信息
+                setGlobelSettinds(bpmnModel, userTask);
+                flowNodes.add(userTask);
+                process.addFlowElement(userTask);
+                bpmnModel.addGraphicInfo(userTask.getId(), graphicInfo);
+                bpmnModel.addFlowGraphicInfoList(userTask.getId(), Arrays.asList(graphicInfo));
+            }
+
+            //第一个节点的连线
+            FlowElement firstFlowElement = flowNodes.get(0);
+            SequenceFlow sequenceFlow = GenerateActivity.generateSequenceFlow(firstNodeId + &quot;----&gt;&quot; + firstFlowElement.getId(), firstNodeId, firstFlowElement.getId());
+            sequenceFlow.setTargetFlowElement(firstFlowElement);
+            GraphicInfo firstgraphicInfo = new GraphicInfo();
+            firstgraphicInfo.setX(100);
+            firstgraphicInfo.setY(100);
+            firstgraphicInfo.setHeight(80);
+            firstgraphicInfo.setWidth(100);
+            FlowElement flowElement = process.getFlowElement(firstNodeId);
+            FlowElement lastflowElement = process.getFlowElement(lastNodeId);
+            FlowNode first = (FlowNode) flowElement;
+            FlowNode last = (FlowNode) lastflowElement;
+            List&lt;SequenceFlow&gt; outgoingFlows = first.getOutgoingFlows();
+            //如果第一个节点是用户任务就移除原有的连线
+            if(first instanceof UserTask) {
+                for (SequenceFlow outgoingFlow : outgoingFlows) {
+                    process.removeFlowElement(outgoingFlow.getId());
+                }
+            }
+            //如果第一个节点是并行网关，最后一个节点也是并行网关就移除原有网关之间的连线
+            if(first instanceof ParallelGateway&amp;&amp;last instanceof ParallelGateway ){
+                for (SequenceFlow outgoingFlow : outgoingFlows) {
+                    String targetRef = outgoingFlow.getTargetRef();
+                    if(targetRef.equals(last.getId())){
+                        process.removeFlowElement(outgoingFlow.getId());
+                    }
+                }
+            }
+            outgoingFlows.clear();
+            outgoingFlows.add(sequenceFlow);
+            process.removeFlowElement(sequenceFlow.getId());
+            process.addFlowElement(sequenceFlow);
+            bpmnModel.addGraphicInfo(sequenceFlow.getId(), firstgraphicInfo);
+            bpmnModel.addFlowGraphicInfoList(sequenceFlow.getId(), Arrays.asList(firstgraphicInfo));
+            for (int i = 0; i &lt; flowNodes.size(); i++) {
+                GraphicInfo graphicInfo = new GraphicInfo();
+                graphicInfo.setX(100);
+                graphicInfo.setY(100);
+                graphicInfo.setHeight(80);
+                graphicInfo.setWidth(100);
+                FlowNode element = flowNodes.get(i);
+                SequenceFlow generateSequenceFlow = null;
+                if (i == flowNodes.size() - 1) {
+                    generateSequenceFlow = GenerateActivity.generateSequenceFlow(
+                            element.getId() + &quot;----&gt;&gt;&gt;&quot; + lastNodeId, element.getId(), lastNodeId);
+                    generateSequenceFlow.setTargetFlowElement(process.getFlowElement(lastNodeId));
+                    element.setOutgoingFlows(Arrays.asList(generateSequenceFlow));
+                } else {
+                    // 不是最后一个节点
+                    generateSequenceFlow = GenerateActivity.generateSequenceFlow(
+                            element.getId() + &quot;----&gt;&gt;&gt;&quot; + flowNodes.get(i + 1).getId(), element.getId(),
+                            flowNodes.get(i + 1).getId());
+                    generateSequenceFlow.setTargetFlowElement(flowNodes.get(i + 1));
+                    element.setOutgoingFlows(Arrays.asList(generateSequenceFlow));
+                }
+                bpmnModel.addGraphicInfo(generateSequenceFlow.getId(), graphicInfo);
+                bpmnModel.addFlowGraphicInfoList(generateSequenceFlow.getId(), Arrays.asList(graphicInfo));
+                process.addFlowElement(generateSequenceFlow);
+            }
+            //更新缓存
+            CustomProcessDefinitionCacheEntry customProcessDefinitionCacheEntry = FlowUtils.parseCustomProcessDefinitionCacheEntry(processDefinitionCacheEntry);
+            caChe.set(processInstanceId, customProcessDefinitionCacheEntry);
+            if (jump) {
+                //跳转到新生成的节点  完成任务
+                ProcessThreadLocal.setSkip(true);
+                taskService.complete(taskId);
+                //managementService.executeCommand(new FlowableJumpCmd(taskId, newActivityId));
+                IdmIdentityService identityService = SpringUtil.getBean(IdmIdentityService.class);
+                UserTask userTask =(UserTask)flowNodes.stream().filter(i -&gt; i.getId().equals(newActivityId)).findFirst().orElseThrow(() -&gt; new CheckErrorException(&quot;找不到要跳转的节点&quot;));
+                User user = identityService.createUserQuery().userId(userTask.getAssignee()).singleResult();
+                ProcessRecordRepository processRecordRepository = SpringUtil.getBean(ProcessRecordRepository.class);
+                ProcessRecord processRecord = new ProcessRecord();
+                processRecord.setInstanceId(processInstanceId);
+                processRecord.setMessage(message);
+                processRecord.setExecutionId(executionId);
+                processRecord.setType(7);
+                processRecord.setActivityId(firstNodeId);
+                processRecord.setUserName(SecurityUtils.getCurrentUserDetail().getRealname());
+                processRecord.setUserId(SecurityUtils.getCurrentUserId());
+                processRecord.setFreeProcessNextUserId(userTask.getAssignee());
+                processRecord.setFreeProcessNextUserName(user.getDisplayName());
+                processRecordRepository.saveAndFlush(processRecord);
+            }
+        }
+        return null;
+    }
+
+    private void setGlobelSettinds(BpmnModel bpmnModel, UserTask userTask) {
+        String processGlobelSettings = &quot;processGlobelSettings&quot;;
+        Process mainProcess = bpmnModel.getMainProcess();
+        JSONObject settings = FlowUtils.getSettingsJsonObject(bpmnModel);
+        JSONObject jsonObject = new JSONObject();
+        jsonObject = settings.getJSONObject(this.propertiesNodeId);
+        String id = userTask.getId();
+        settings.put(id, jsonObject);
+        List&lt;ExtensionElement&gt; extensionElements = mainProcess.getExtensionElements().get(processGlobelSettings);
+        if (extensionElements != null &amp;&amp; extensionElements.size() &gt; 0) {
+            ExtensionElement extensionElement = extensionElements.get(0);
+            extensionElement.setElementText(settings.toJSONString());
+        }
+    }
+
+    /**
+     * 校验两个节点是否是临近节点
+     *
+     * @param firstNodeId
+     * @param lastNodeId
+     * @param process
+     * @return
+     */
+    private boolean validation(String firstNodeId, String lastNodeId, Process process) {
+        boolean result = true;
+        FlowElement firstFlowElement = process.getFlowElement(firstNodeId);
+        if(firstFlowElement instanceof Gateway){
+            return true;
+        }
+        if (firstFlowElement == null) {
+            result = false;
+        }
+        FlowElement lastFlowElement = process.getFlowElement(lastNodeId);
+        if (lastFlowElement == null) {
+            result = false;
+        }
+        FlowNode f1 = null;
+        FlowNode f2 = null;
+        if (firstFlowElement instanceof FlowNode) {
+            f1 = (FlowNode) firstFlowElement;
+        }
+        if (lastFlowElement instanceof FlowNode) {
+            f2 = (FlowNode) lastFlowElement;
+        }
+        if (f1 == null || f2 == null) {
+            throw new CheckErrorException(&quot;节点不存在&quot;);
+        }
+        List&lt;SequenceFlow&gt; outgoingFlows = f1.getOutgoingFlows();
+        boolean isContain = false;
+        for (SequenceFlow sequenceFlow : outgoingFlows) {
+
+            String targetRef = sequenceFlow.getTargetRef();
+            if (targetRef.equals(lastNodeId)) {
+                System.out.println(&quot;两个节点是临近界定&quot;);
+                isContain = true;
+                break;
+            }
+        }
+        if (!isContain) {
+            result = false;
+        }
+        return result;
+    }
+}
+
+
+</code></pre>
+<h2 id="调用方法示例">调用方法示例</h2>
+<pre><code class="language-java">@Override
+    @Transactional
+    public void freeProcessGotoNext(HashMap&lt;String, Object&gt; map) {
+        ArrayList&lt;String&gt; cc = (ArrayList&lt;String&gt;) map.get(&quot;processCc&quot;);
+        String taskId = (String) map.get(&quot;taskId&quot;);
+        String note = (String) map.get(&quot;flowable_task_note&quot;);
+        String priority = (String) map.get(&quot;priority&quot;);
+        String nextUserId = (String) map.get(&quot;nextUserId&quot;);
+        String nextUserName = (String) map.get(&quot;nextUserName&quot;);
+        map.remove(&quot;taskId&quot;);
+        map.remove(&quot;flowable_task_note&quot;);
+        map.remove(&quot;priority&quot;);
+        map.remove(&quot;nextUserId&quot;);
+        map.remove(&quot;nextUserName&quot;);
+        map.remove(&quot;processCc&quot;);
+        ArrayList&lt;TaskModel&gt; list = Lists.newArrayList();
+        TaskModel taskModel = new TaskModel();
+        String id = UUID.randomUUID().toString().replaceAll(&quot;-&quot;, &quot;&quot;);
+        taskModel.setId(id);
+        taskModel.setName(&quot;自由流程转交(&quot; + nextUserName + &quot;)&quot;);
+        taskModel.setDoUserId(nextUserId);
+        list.add(taskModel);
+        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        runtimeService.setVariables(task.getProcessInstanceId(), map);
+        //插入抄送数据
+        customTaskService.insertProcessCc(cc, task.getProcessInstanceId());
+        BpmnModel bpmnModel = repositoryService.getBpmnModel(task.getProcessDefinitionId());
+        FlowElement flowElement = bpmnModel.getMainProcess().getFlowElements().stream().filter(i -&gt; i instanceof EndEvent).findFirst().orElseThrow(() -&gt; new CheckErrorException(&quot;流程模型错误！&quot;));
+        String lastNodeId = flowElement.getId();
+        String currentAdtivityid = task.getTaskDefinitionKey();
+        String processInstanceId = task.getProcessInstanceId();
+        FlowUtils.getRequest().setAttribute(&quot;processInstanceId&quot;, task.getProcessInstanceId());
+        FreeProcessAddNodeCommand command = FreeProcessAddNodeCommand.builder()
+                .processDefinitionId(task.getProcessDefinitionId())
+                .currentActivityId(currentAdtivityid)
+                .firstNodeId(currentAdtivityid)
+                .lastNodeId(lastNodeId)
+                .propertiesNodeId(currentAdtivityid)
+                .newActivityId(id)
+                .processInstanceId(processInstanceId)
+                .taskModelList(list)
+                .taskId(task.getId())
+                .jump(true)
+                .message(note)
+                .executionId(task.getExecutionId())
+                .build();
+        managementService.executeCommand(command);
+        //设置任务的紧急程度
+        if (priority != null) {
+            List&lt;Task&gt; tasks = taskService.createTaskQuery().processInstanceId(task.getProcessInstanceId()).list();
+            for (Task taskTemp : tasks) {
+                taskService.setPriority(taskTemp.getId(), Integer.parseInt(priority));
+            }
+        }
+    }
+
+</code></pre>
 
             </div>
           </article>
@@ -349,7 +755,7 @@ public class FreeProcessCaCheImpl implements FreeProcessCaChe {
 
       <div class="sm-12 md-4 col sidebar">
   <div class="paper info-container">
-    <img src="https://oldcamel.run/images/avatar.png?v=1630632169805" class="no-responsive avatar">
+    <img src="https://oldcamel.run/images/avatar.png?v=1631072065076" class="no-responsive avatar">
     <div class="text-muted">希望自己可以做喜欢的事，可以多去远方看看 
 <div><iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=86 src="//music.163.com/outchain/player?type=2&id=18611643&auto=1&height=66"></iframe></div></div>
     <div class="social-container">
@@ -462,19 +868,19 @@ public class FreeProcessCaCheImpl implements FreeProcessCaChe {
           kubernetes
         </a>
       
-        <a href="https://oldcamel.run/tag/AfOZDj8Cpm/" class="badge success">
+        <a href="https://oldcamel.run/tag/AfOZDj8Cpm/" class="badge secondary">
           kafka
         </a>
       
-        <a href="https://oldcamel.run/tag/L9nUjvZyjL/" class="badge warning">
+        <a href="https://oldcamel.run/tag/L9nUjvZyjL/" class="badge success">
           oracle
         </a>
       
-        <a href="https://oldcamel.run/tag/VDLSOs9Sv/" class="badge secondary">
+        <a href="https://oldcamel.run/tag/VDLSOs9Sv/" class="badge success">
           k8s
         </a>
       
-        <a href="https://oldcamel.run/tag/dITV2_NRd/" class="badge ">
+        <a href="https://oldcamel.run/tag/dITV2_NRd/" class="badge success">
           VictoriaMetrics
         </a>
       
@@ -482,15 +888,15 @@ public class FreeProcessCaCheImpl implements FreeProcessCaChe {
           prometheus
         </a>
       
-        <a href="https://oldcamel.run/tag/0BLo6JsC8/" class="badge warning">
+        <a href="https://oldcamel.run/tag/0BLo6JsC8/" class="badge ">
           flowable
         </a>
       
-        <a href="https://oldcamel.run/tag/KOvNrkSXn/" class="badge ">
+        <a href="https://oldcamel.run/tag/KOvNrkSXn/" class="badge warning">
           beam
         </a>
       
-        <a href="https://oldcamel.run/tag/xOjaMtgYtD/" class="badge success">
+        <a href="https://oldcamel.run/tag/xOjaMtgYtD/" class="badge ">
           clickhouse
         </a>
       
